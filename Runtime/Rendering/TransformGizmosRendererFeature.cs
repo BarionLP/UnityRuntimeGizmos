@@ -28,6 +28,28 @@ namespace RuntimeGizmos.Rendering
             }
         }
 
+#if UNITY_EDITOR
+        void Reset()
+        {
+            materialData = new();
+
+
+            // This gives you "Packages/com.mycompany.myPackage"
+            var pkg = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(TransformGizmosRendererFeature).Assembly);
+            Debug.Log(pkg);
+            var assetPath = pkg == null ? "Assets/RuntimeGizmos/" : pkg.assetPath;
+
+            materialData.XAxis = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/AxisX.mat"));
+            materialData.YAxis = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/AxisY.mat"));
+            materialData.ZAxis = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/AxisZ.mat"));
+            materialData.XPlane = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/PlaneX.mat"));
+            materialData.YPlane = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/PlaneY.mat"));
+            materialData.ZPlane = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/PlaneZ.mat"));
+            materialData.Selected = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/Selected.mat"));
+            materialData.Hovering = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/Hover.mat"));
+        }
+#endif
+
         private sealed class Pass : ScriptableRenderPass
         {
             private readonly TransformGizmo gizmos;
@@ -279,7 +301,6 @@ namespace RuntimeGizmos.Rendering
                 }
             }
         }
-
 
         [Serializable]
         private sealed class MaterialData
