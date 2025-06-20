@@ -13,7 +13,9 @@ namespace RuntimeGizmos.Rendering
 
         public override void Create()
         {
-            pass = new(FindFirstObjectByType<TransformGizmo>(), outline)
+            var gizmos = FindFirstObjectByType<TransformGizmo>();
+            if (gizmos == null) return;
+            pass = new(gizmos, outline)
             {
                 renderPassEvent = RenderPassEvent.AfterRenderingTransparents
             };
@@ -21,6 +23,8 @@ namespace RuntimeGizmos.Rendering
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
+            if (pass is null) return;
+
             if (renderingData.cameraData.cameraType is CameraType.Game)
             {
                 renderer.EnqueuePass(pass);
