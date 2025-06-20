@@ -1,12 +1,15 @@
-using System;
-
 namespace CommandUndoRedo
 {
-	public static class UndoRedoManager
+	internal static class UndoRedoManager
 	{
 		static UndoRedo undoRedo = new UndoRedo();
 
-		public static int maxUndoStored {get {return undoRedo.MaxUndoStored;} set {undoRedo.MaxUndoStored = value;}}
+		public static int maxUndoStored
+		{
+			get
+			{ return undoRedo.MaxUndoStored; }
+			set { undoRedo.MaxUndoStored = value; }
+		}
 
 		public static void Clear()
 		{

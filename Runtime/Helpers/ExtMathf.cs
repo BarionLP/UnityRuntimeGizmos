@@ -1,8 +1,6 @@
-using System;
-
 namespace RuntimeGizmos
 {
-	public static class ExtMathf
+	internal static class ExtMathf
 	{
 		public static float Squared(this float value)
 		{

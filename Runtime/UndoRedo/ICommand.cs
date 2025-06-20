@@ -1,8 +1,6 @@
-using System;
-
 namespace CommandUndoRedo
 {
-	public interface ICommand
+	internal interface ICommand
 	{
 		void Execute();
 		void UnExecute();

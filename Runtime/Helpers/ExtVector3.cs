@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace RuntimeGizmos
 {
-	public static class ExtVector3
+	internal static class ExtVector3
 	{
 		public static float MagnitudeInDirection(Vector3 vector, Vector3 direction, bool normalizeParameters = true)
 		{

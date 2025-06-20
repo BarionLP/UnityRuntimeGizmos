@@ -1,6 +1,6 @@
 namespace CommandUndoRedo
 {
-	public class UndoRedo
+	internal class UndoRedo
 	{
 		public int MaxUndoStored {get {return undoCommands.MaxLength;} set {SetMaxLength(value);}}
 

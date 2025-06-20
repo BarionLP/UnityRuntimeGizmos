@@ -1,9 +1,8 @@
-using System;
 using UnityEngine;
 
 namespace RuntimeGizmos
 {
-	public static class ExtTransform
+	internal static class ExtTransform
 	{
 		//This acts as if you are using a parent transform as your new pivot and transforming that parent instead of the child.
 		//So instead of creating a gameobject and parenting "target" to it and translating only the parent gameobject, we can use this method.

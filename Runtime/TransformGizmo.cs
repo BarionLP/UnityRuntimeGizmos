@@ -12,7 +12,7 @@ namespace RuntimeGizmos
     // For example, if you select an object that has children, move the children elsewhere, deselect the original object, then try to add those old children to the selection, I think it won't work.
 
     [RequireComponent(typeof(Camera))]
-    public class TransformGizmo : MonoBehaviour
+    public sealed class TransformGizmo : MonoBehaviour
     {
         public TransformSpace space = TransformSpace.Global;
         public TransformType transformType = TransformType.Move;
@@ -33,21 +33,9 @@ namespace RuntimeGizmos
         public KeyCode translationSnapping = KeyCode.LeftControl;
         public KeyCode AddSelection = KeyCode.LeftShift;
         public KeyCode RemoveSelection = KeyCode.LeftControl;
-        public KeyCode ActionKey = KeyCode.LeftShift; //Its set to shift instead of control so that while in the editor we dont accidentally undo editor changes =/
+        public KeyCode ActionKey = KeyCode.LeftControl; //Its set to shift instead of control so that while in the editor we dont accidentally undo editor changes =/
         public KeyCode UndoAction = KeyCode.Z;
         public KeyCode RedoAction = KeyCode.Y;
-
-        public Color xColor = new(1, 0, 0, 0.8f);
-        public Color yColor = new(0, 1, 0, 0.8f);
-        public Color zColor = new(0, 0, 1, 0.8f);
-        public Color allColor = new(.7f, .7f, .7f, 0.8f);
-        public Color selectedColor = new(1, 1, 0, 0.8f);
-        public Color hoverColor = new(1, .75f, 0, 0.8f);
-        public float planesOpacity = .5f;
-        //public Color rectPivotColor = new(0, 0, 1, 0.8f);
-        //public Color rectCornerColor = new(0, 0, 1, 0.8f);
-        //public Color rectAnchorColor = new(.7f, .7f, .7f, 0.8f);
-        //public Color rectLineColor = new(.7f, .7f, .7f, 0.8f);
 
         public float movementSnap = .25f;
         public float rotationSnap = 15f;
@@ -78,7 +66,7 @@ namespace RuntimeGizmos
         //Might be poor on performance if lots of objects are selected...
         public bool forceUpdatePivotPointOnChange = true;
 
-        public int maxUndoStored = 100;
+        [SerializeField] private int maxUndoStored = 100;
 
         public bool manuallyHandleGizmo;
 
@@ -103,15 +91,15 @@ namespace RuntimeGizmos
         public Transform MainTargetRoot => (targetRootsOrdered.Count > 0) ? useFirstSelectedAsMain ? targetRootsOrdered[0] : targetRootsOrdered[^1] : null;
 
         AxisInfo axisInfo;
-        Axis nearAxis = Axis.None;
+        internal Axis nearAxis = Axis.None;
         Axis planeAxis = Axis.None;
-        TransformType translatingType;
+        internal TransformType translatingType;
 
-        readonly AxisVectors handleLines = new();
-        readonly AxisVectors handlePlanes = new();
-        readonly AxisVectors handleTriangles = new();
-        readonly AxisVectors handleSquares = new();
-        readonly AxisVectors circlesLines = new();
+        internal readonly AxisVectors handleLines = new();
+        internal readonly AxisVectors handlePlanes = new();
+        internal readonly AxisVectors handleTriangles = new();
+        internal readonly AxisVectors handleSquares = new();
+        internal readonly AxisVectors circlesLines = new();
 
         //We use a HashSet and a List for targetRoots so that we get fast lookup with the hashset while also keeping track of the order with the list.
         readonly List<Transform> targetRootsOrdered = new();
@@ -126,23 +114,16 @@ namespace RuntimeGizmos
         readonly WaitForEndOfFrame waitForEndOFFrame = new();
         // Coroutine forceUpdatePivotCoroutine;
 
-        [SerializeField] private Material lineMaterial;
+        [SerializeField] internal Material lineMaterial;
 
         void Awake()
         {
             myCamera = GetComponent<Camera>();
         }
 
-        void OnEnable()
-        {
-            // forceUpdatePivotCoroutine = StartCoroutine(ForceUpdatePivotPointAtEndOfFrame());
-        }
-
         void OnDisable()
         {
             ClearTargets(); // Just so things gets cleaned up, such as removing any materials we placed on objects.
-
-            // StopCoroutine(forceUpdatePivotCoroutine);
         }
 
         void OnDestroy()
@@ -187,65 +168,6 @@ namespace RuntimeGizmos
             {
                 SetLines();
             }
-        }
-
-        void OnPostRender()
-        {
-            if (MainTargetRoot == null || manuallyHandleGizmo) return;
-
-            lineMaterial.SetPass(0);
-
-            Color xColor = (nearAxis == Axis.X) ? IsTransforming ? selectedColor : hoverColor : this.xColor;
-            Color yColor = (nearAxis == Axis.Y) ? IsTransforming ? selectedColor : hoverColor : this.yColor;
-            Color zColor = (nearAxis == Axis.Z) ? IsTransforming ? selectedColor : hoverColor : this.zColor;
-            Color allColor = (nearAxis == Axis.Any) ? IsTransforming ? selectedColor : hoverColor : this.allColor;
-
-            //Note: The order of drawing the axis decides what gets drawn over what.
-
-            TransformType moveOrScaleType = (transformType == TransformType.Scale || (IsTransforming && translatingType == TransformType.Scale)) ? TransformType.Scale : TransformType.Move;
-            DrawQuads(handleLines.z, GetColor(moveOrScaleType, this.zColor, zColor, HasTranslatingAxisPlane));
-            DrawQuads(handleLines.x, GetColor(moveOrScaleType, this.xColor, xColor, HasTranslatingAxisPlane));
-            DrawQuads(handleLines.y, GetColor(moveOrScaleType, this.yColor, yColor, HasTranslatingAxisPlane));
-
-            DrawTriangles(handleTriangles.x, GetColor(TransformType.Move, this.xColor, xColor, HasTranslatingAxisPlane));
-            DrawTriangles(handleTriangles.y, GetColor(TransformType.Move, this.yColor, yColor, HasTranslatingAxisPlane));
-            DrawTriangles(handleTriangles.z, GetColor(TransformType.Move, this.zColor, zColor, HasTranslatingAxisPlane));
-
-            DrawQuads(handlePlanes.z, GetColor(TransformType.Move, this.zColor, zColor, planesOpacity, !HasTranslatingAxisPlane));
-            DrawQuads(handlePlanes.x, GetColor(TransformType.Move, this.xColor, xColor, planesOpacity, !HasTranslatingAxisPlane));
-            DrawQuads(handlePlanes.y, GetColor(TransformType.Move, this.yColor, yColor, planesOpacity, !HasTranslatingAxisPlane));
-
-            DrawQuads(handleSquares.x, GetColor(TransformType.Scale, this.xColor, xColor));
-            DrawQuads(handleSquares.y, GetColor(TransformType.Scale, this.yColor, yColor));
-            DrawQuads(handleSquares.z, GetColor(TransformType.Scale, this.zColor, zColor));
-            DrawQuads(handleSquares.all, GetColor(TransformType.Scale, this.allColor, allColor));
-
-            DrawQuads(circlesLines.all, GetColor(TransformType.Rotate, this.allColor, allColor));
-            DrawQuads(circlesLines.x, GetColor(TransformType.Rotate, this.xColor, xColor));
-            DrawQuads(circlesLines.y, GetColor(TransformType.Rotate, this.yColor, yColor));
-            DrawQuads(circlesLines.z, GetColor(TransformType.Rotate, this.zColor, zColor));
-        }
-
-        Color GetColor(TransformType type, Color normalColor, Color nearColor, bool forceUseNormal = false) => GetColor(type, normalColor, nearColor, false, 1, forceUseNormal);
-        Color GetColor(TransformType type, Color normalColor, Color nearColor, float alpha, bool forceUseNormal = false) => GetColor(type, normalColor, nearColor, true, alpha, forceUseNormal);
-        Color GetColor(TransformType type, Color normalColor, Color nearColor, bool setAlpha, float alpha, bool forceUseNormal = false)
-        {
-            Color color;
-            if (!forceUseNormal && TranslatingTypeContains(type, false))
-            {
-                color = nearColor;
-            }
-            else
-            {
-                color = normalColor;
-            }
-
-            if (setAlpha)
-            {
-                color.a = alpha;
-            }
-
-            return color;
         }
 
         void HandleUndoRedo()
@@ -715,15 +637,6 @@ namespace RuntimeGizmos
 
                     if (!highlightedRenderers.Contains(render))
                     {
-                        // materialsBuffer.Clear();
-                        // materialsBuffer.AddRange(render.sharedMaterials);
-
-                        // if (!materialsBuffer.Contains(outlineMaterial))
-                        // {
-                        //     materialsBuffer.Add(outlineMaterial);
-                        //     render.materials = materialsBuffer.ToArray();
-                        // }
-
                         highlightedRenderers.Add(render);
                     }
                 }
@@ -765,20 +678,7 @@ namespace RuntimeGizmos
         {
             for (int i = 0; i < renderersBuffer.Count; i++)
             {
-                Renderer render = renderersBuffer[i];
-                // if (render != null)
-                // {
-                // 	materialsBuffer.Clear();
-                // 	materialsBuffer.AddRange(render.sharedMaterials);
-
-                // 	if (materialsBuffer.Contains(outlineMaterial))
-                // 	{
-                // 		materialsBuffer.Remove(outlineMaterial);
-                // 		render.materials = materialsBuffer.ToArray();
-                // 	}
-                // }
-
-                highlightedRenderers.Remove(render);
+                highlightedRenderers.Remove(renderersBuffer[i]);
             }
 
             renderersBuffer.Clear();
@@ -842,7 +742,7 @@ namespace RuntimeGizmos
                 {
                     totalCenterPivotPoint = Vector3.zero;
 
-                    Dictionary<Transform, TargetInfo>.Enumerator targetsEnumerator = targetRoots.GetEnumerator(); //We avoid foreach to avoid garbage.
+                    Dictionary<Transform, TargetInfo>.Enumerator targetsEnumerator = targetRoots.GetEnumerator();
                     while (targetsEnumerator.MoveNext())
                     {
                         Transform target = targetsEnumerator.Current.Key;
@@ -869,41 +769,6 @@ namespace RuntimeGizmos
         {
             PivotPoint += offset;
             totalCenterPivotPoint += offset;
-        }
-
-
-        // IEnumerator ForceUpdatePivotPointAtEndOfFrame()
-        // {
-        // 	while (this.enabled)
-        // 	{
-        // 		ForceUpdatePivotPointOnChange();
-        // 		yield return waitForEndOFFrame;
-        // 	}
-        // }
-
-        void ForceUpdatePivotPointOnChange()
-        {
-            if (forceUpdatePivotPointOnChange)
-            {
-                if (MainTargetRoot != null && !IsTransforming)
-                {
-                    bool hasSet = false;
-                    Dictionary<Transform, TargetInfo>.Enumerator targets = targetRoots.GetEnumerator();
-                    while (targets.MoveNext())
-                    {
-                        if (!hasSet)
-                        {
-                            if (targets.Current.Value.previousPosition != Vector3.zero && targets.Current.Key.position != targets.Current.Value.previousPosition)
-                            {
-                                SetPivotPoint();
-                                hasSet = true;
-                            }
-                        }
-
-                        targets.Current.Value.previousPosition = targets.Current.Key.position;
-                    }
-                }
-            }
         }
 
         public void SetTranslatingAxis(TransformType type, Axis axis, Axis planeAxis = Axis.None)
@@ -1303,41 +1168,6 @@ namespace RuntimeGizmos
 
                 lastPoint = nextPoint;
             }
-        }
-
-        void DrawTriangles(List<Vector3> lines, Color color)
-        {
-            if (lines.Count == 0) return;
-
-            GL.Begin(GL.TRIANGLES);
-            GL.Color(color);
-
-            for (int i = 0; i < lines.Count; i += 3)
-            {
-                GL.Vertex(lines[i]);
-                GL.Vertex(lines[i + 1]);
-                GL.Vertex(lines[i + 2]);
-            }
-
-            GL.End();
-        }
-
-        void DrawQuads(List<Vector3> lines, Color color)
-        {
-            if (lines.Count == 0) return;
-
-            GL.Begin(GL.QUADS);
-            GL.Color(color);
-
-            for (int i = 0; i < lines.Count; i += 4)
-            {
-                GL.Vertex(lines[i]);
-                GL.Vertex(lines[i + 1]);
-                GL.Vertex(lines[i + 2]);
-                GL.Vertex(lines[i + 3]);
-            }
-
-            GL.End();
         }
     }
 }

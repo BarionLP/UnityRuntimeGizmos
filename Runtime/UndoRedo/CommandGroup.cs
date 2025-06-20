@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 
 namespace CommandUndoRedo
 {
-	public class CommandGroup : ICommand
+	internal class CommandGroup : ICommand
 	{
 		List<ICommand> commands = new List<ICommand>();
 

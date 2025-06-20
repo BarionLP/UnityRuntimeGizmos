@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 
 namespace CommandUndoRedo
 {
-	public class DropoutStack<T> : LinkedList<T>
+	internal class DropoutStack<T> : LinkedList<T>
 	{
 		int _maxLength = int.MaxValue;
 		public int MaxLength

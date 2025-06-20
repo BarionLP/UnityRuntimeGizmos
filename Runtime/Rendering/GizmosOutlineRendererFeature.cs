@@ -52,7 +52,7 @@ namespace RuntimeGizmos.Rendering
                 data.OutlineShaderPass = outline.FindPass("Universal Forward"); // Shader Graph outputs multiple passes. we only need the the main pass
                 data.Selected = gizmoRef.highlightedRenderers;
 
-                builder.AllowPassCulling(false);
+                // builder.AllowPassCulling(false);
                 builder.SetRenderAttachment(resourceData.activeColorTexture, 0);
                 builder.SetRenderFunc<PassData>(ExecutePass);
             }
