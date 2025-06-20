@@ -14,6 +14,7 @@ namespace RuntimeGizmos
     [RequireComponent(typeof(Camera))]
     public sealed class TransformGizmo : MonoBehaviour
     {
+        public static TransformGizmo Instance { get; private set; }
         public TransformSpace space = TransformSpace.Global;
         public TransformType transformType = TransformType.Move;
         public TransformPivot pivot = TransformPivot.Pivot;
@@ -111,18 +112,28 @@ namespace RuntimeGizmos
         readonly List<Renderer> renderersBuffer = new();
         readonly List<Material> materialsBuffer = new();
 
-        readonly WaitForEndOfFrame waitForEndOFFrame = new();
-        // Coroutine forceUpdatePivotCoroutine;
-
-        [SerializeField] internal Material lineMaterial;
-
         void Awake()
         {
             myCamera = GetComponent<Camera>();
         }
 
+        void OnEnable()
+        {
+            if (Instance != null)
+            {
+                Debug.LogError("Found two active TransformGizmo components");
+                enabled = false;
+                return;
+            }
+            Instance = this;
+        }
+
         void OnDisable()
         {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
             ClearTargets(); // Just so things gets cleaned up, such as removing any materials we placed on objects.
         }
 

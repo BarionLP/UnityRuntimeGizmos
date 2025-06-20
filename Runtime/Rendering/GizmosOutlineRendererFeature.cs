@@ -13,9 +13,7 @@ namespace RuntimeGizmos.Rendering
 
         public override void Create()
         {
-            var gizmos = FindFirstObjectByType<TransformGizmo>();
-            if (gizmos == null) return;
-            pass = new(gizmos, outline)
+            pass = new(outline)
             {
                 renderPassEvent = RenderPassEvent.AfterRenderingTransparents
             };
@@ -23,7 +21,7 @@ namespace RuntimeGizmos.Rendering
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (pass is null) return;
+            if (TransformGizmo.Instance == null) return;
 
             if (renderingData.cameraData.cameraType is CameraType.Game)
             {
@@ -31,14 +29,23 @@ namespace RuntimeGizmos.Rendering
             }
         }
 
+#if UNITY_EDITOR
+        void Reset()
+        {
+
+            var pkg = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(TransformGizmosRendererFeature).Assembly);
+            var assetPath = pkg == null ? "Assets/RuntimeGizmos/" : pkg.assetPath;
+
+            outline = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/Outline.shadergraph"));
+        }
+#endif
+
         private sealed class Pass : ScriptableRenderPass
         {
-            private readonly TransformGizmo gizmoRef;
             private readonly Material outline;
 
-            public Pass(TransformGizmo gizmoRef, Material outline)
+            public Pass(Material outline)
             {
-                this.gizmoRef = gizmoRef;
                 this.outline = outline;
             }
 
@@ -50,7 +57,7 @@ namespace RuntimeGizmos.Rendering
 
                 data.Outline = outline;
                 data.OutlineShaderPass = outline.FindPass("Universal Forward"); // Shader Graph outputs multiple passes. we only need the the main pass
-                data.Selected = gizmoRef.highlightedRenderers;
+                data.Selected = TransformGizmo.Instance.highlightedRenderers;
 
                 // builder.AllowPassCulling(false);
                 builder.SetRenderAttachment(resourceData.activeColorTexture, 0);

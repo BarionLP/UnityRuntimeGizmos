@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -14,7 +13,7 @@ namespace RuntimeGizmos.Rendering
         private Pass pass;
         public override void Create()
         {
-            pass = new Pass(FindFirstObjectByType<TransformGizmo>(), materialData)
+            pass = new Pass(materialData)
             {
                 renderPassEvent = RenderPassEvent.AfterRenderingTransparents,
             };
@@ -22,7 +21,8 @@ namespace RuntimeGizmos.Rendering
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (renderingData.cameraData.cameraType is UnityEngine.CameraType.Game)
+            if (TransformGizmo.Instance == null) return;
+            if (renderingData.cameraData.cameraType is CameraType.Game)
             {
                 renderer.EnqueuePass(pass);
             }
@@ -33,10 +33,7 @@ namespace RuntimeGizmos.Rendering
         {
             materialData = new();
 
-
-            // This gives you "Packages/com.mycompany.myPackage"
             var pkg = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(TransformGizmosRendererFeature).Assembly);
-            Debug.Log(pkg);
             var assetPath = pkg == null ? "Assets/RuntimeGizmos/" : pkg.assetPath;
 
             materialData.XAxis = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(System.IO.Path.Combine(assetPath, "Runtime/Materials/AxisX.mat"));
@@ -52,13 +49,11 @@ namespace RuntimeGizmos.Rendering
 
         private sealed class Pass : ScriptableRenderPass
         {
-            private readonly TransformGizmo gizmos;
             private readonly MaterialData materialData;
             private readonly Mesh mesh = new() { indexFormat = IndexFormat.UInt16 };
 
-            public Pass(TransformGizmo gizmos, MaterialData materialData)
+            public Pass(MaterialData materialData)
             {
-                this.gizmos = gizmos;
                 this.materialData = materialData;
             }
 
@@ -68,9 +63,8 @@ namespace RuntimeGizmos.Rendering
                 var cameraData = frameData.Get<UniversalCameraData>();
                 var resourceData = frameData.Get<UniversalResourceData>();
 
-                data.gizmos = gizmos;
+                data.gizmos = TransformGizmo.Instance;
                 data.materialData = materialData;
-                data.ShaderPass = gizmos.lineMaterial.FindPass("Universal Forward"); // Shader Graph outputs multiple passes. we only need the the main pass
 
                 switch (data.transformType)
                 {
@@ -99,15 +93,16 @@ namespace RuntimeGizmos.Rendering
             {
                 if (data.gizmos.highlightedRenderers.Count is 0 || !data.enabled) return;
 
-                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialX(data.transformType), submeshIndex: 0, data.ShaderPass);
-                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialY(data.transformType), submeshIndex: 1, data.ShaderPass);
-                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialZ(data.transformType), submeshIndex: 2, data.ShaderPass);
+                // if shaders start to behave wierdly it might be that the default shader pass ("Universal Forward") changed
+                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialX(data.transformType), submeshIndex: 0, shaderPass: 0);
+                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialY(data.transformType), submeshIndex: 1, shaderPass: 0);
+                context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialZ(data.transformType), submeshIndex: 2, shaderPass: 0);
 
                 if (data.hasPlanes)
                 {
-                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialXPlane(data.transformType), submeshIndex: 3, data.ShaderPass);
-                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialYPlane(data.transformType), submeshIndex: 4, data.ShaderPass);
-                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialZPlane(data.transformType), submeshIndex: 5, data.ShaderPass);
+                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialXPlane(data.transformType), submeshIndex: 3, shaderPass: 0);
+                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialYPlane(data.transformType), submeshIndex: 4, shaderPass: 0);
+                    context.cmd.DrawMesh(data.mesh, Matrix4x4.identity, data.GetMaterialZPlane(data.transformType), submeshIndex: 5, shaderPass: 0);
                 }
             }
 
@@ -320,7 +315,6 @@ namespace RuntimeGizmos.Rendering
             internal TransformGizmo gizmos;
             internal Mesh mesh;
             internal MaterialData materialData;
-            internal int ShaderPass;
             internal bool enabled;
             internal bool hasPlanes;
 
@@ -329,7 +323,6 @@ namespace RuntimeGizmos.Rendering
             internal TransformType translatingType => gizmos.translatingType;
             internal bool IsTransforming => gizmos.IsTransforming;
             internal Axis nearAxis => gizmos.nearAxis;
-            internal TransformType moveOrScaleType => (transformType is TransformType.Scale || (IsTransforming && translatingType is TransformType.Scale)) ? TransformType.Scale : TransformType.Move;
 
             internal Material GetMaterialX(TransformType type) => GetMaterial(type, materialData.XAxis, ((nearAxis is Axis.X) ? IsTransforming ? materialData.Selected : materialData.Hovering : materialData.XAxis), gizmos.HasTranslatingAxisPlane);
             internal Material GetMaterialY(TransformType type) => GetMaterial(type, materialData.YAxis, ((nearAxis is Axis.Y) ? IsTransforming ? materialData.Selected : materialData.Hovering : materialData.YAxis), gizmos.HasTranslatingAxisPlane);
