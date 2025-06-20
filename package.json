@@ -1,0 +1,21 @@
+{
+    "name": "com.ametrin.transformgizmos",
+    "displayName": "Runtime Transform Gizmos",
+    "version": "0.1.0",
+    "unity": "6000.0",
+    "description": "runtime transform gizmos",
+    "license": "MIT",
+    "author": {
+        "name": "Barion",
+        "email": "ametrin.studios@gmail.com",
+        "url": "https://github.com/BarionLP"
+    },
+    "bugs": {
+        "url": "https://github.com/BarionLP/CommandSystem/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/BarionLP/CommandSystem.git"
+    },
+    "samples": []
+}
