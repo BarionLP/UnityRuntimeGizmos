@@ -2,28 +2,28 @@ using System.Collections.Generic;
 
 namespace CommandUndoRedo
 {
-	internal class DropoutStack<T> : LinkedList<T>
+	internal sealed class DropoutStack<T> : LinkedList<T>
 	{
 		int _maxLength = int.MaxValue;
 		public int MaxLength
-		{
-			get { return _maxLength; }
-			set
-			{
-				_maxLength = value;
+        {
+            get => _maxLength;
+            set
+            {
+                _maxLength = value;
 
-				if (Count > _maxLength)
-				{
-					int leftover = Count - _maxLength;
-					for (int i = 0; i < leftover; i++)
-					{
-						RemoveLast();
-					}
-				}
-			}
-		}
+                if (Count > _maxLength)
+                {
+                    int leftover = Count - _maxLength;
+                    for (int i = 0; i < leftover; i++)
+                    {
+                        RemoveLast();
+                    }
+                }
+            }
+        }
 
-		public DropoutStack(int maxLength = int.MaxValue)
+        public DropoutStack(int maxLength = int.MaxValue)
 		{
 			MaxLength = maxLength;
 		}

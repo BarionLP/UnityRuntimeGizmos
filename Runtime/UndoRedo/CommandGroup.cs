@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace CommandUndoRedo
 {
-	internal class CommandGroup : ICommand
+	internal sealed class CommandGroup : ICommand
 	{
-		List<ICommand> commands = new List<ICommand>();
+		private List<ICommand> commands = new();
 
 		public CommandGroup() {}
 		public CommandGroup(List<ICommand> commands)

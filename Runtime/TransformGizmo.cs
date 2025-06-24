@@ -8,7 +8,7 @@ using RuntimeGizmos.Commands;
 namespace RuntimeGizmos
 {
     // To be safe, if you are changing any transforms hierarchy, such as parenting an object to something,
-    // you should call ClearTargets before doing so just to be sure nothing unexpected happens... as well as call UndoRedoManager.Clear()
+    // you should call ClearTargets before doing so just to be sure nothing unexpected happens... as well as call UndoRedo.Global.Clear()
     // For example, if you select an object that has children, move the children elsewhere, deselect the original object, then try to add those old children to the selection, I think it won't work.
 
     [RequireComponent(typeof(Camera))]
@@ -34,7 +34,7 @@ namespace RuntimeGizmos
         public KeyCode translationSnapping = KeyCode.LeftControl;
         public KeyCode AddSelection = KeyCode.LeftShift;
         public KeyCode RemoveSelection = KeyCode.LeftControl;
-        public KeyCode ActionKey = KeyCode.LeftControl; //Its set to shift instead of control so that while in the editor we dont accidentally undo editor changes =/
+        public KeyCode ActionKey = KeyCode.LeftControl; // you should disable unity shortcuts at runtime so they do not interfere
         public KeyCode UndoAction = KeyCode.Z;
         public KeyCode RedoAction = KeyCode.Y;
 
@@ -76,7 +76,7 @@ namespace RuntimeGizmos
         public Action onCheckForSelectedAxis;
         public Action onDrawCustomGizmo;
 
-        public Camera myCamera { get; private set; }
+        [SerializeField] private new Camera camera;
 
         public bool IsTransforming { get; private set; }
         public float TotalScaleAmount { get; private set; }
@@ -111,11 +111,6 @@ namespace RuntimeGizmos
         readonly List<Transform> childrenBuffer = new();
         readonly List<Renderer> renderersBuffer = new();
         readonly List<Material> materialsBuffer = new();
-
-        void Awake()
-        {
-            myCamera = GetComponent<Camera>();
-        }
 
         void OnEnable()
         {
@@ -173,7 +168,7 @@ namespace RuntimeGizmos
 
             if (manuallyHandleGizmo)
             {
-                if (onDrawCustomGizmo != null) onDrawCustomGizmo();
+                onDrawCustomGizmo?.Invoke();
             }
             else
             {
@@ -183,17 +178,20 @@ namespace RuntimeGizmos
 
         void HandleUndoRedo()
         {
-            if (maxUndoStored != UndoRedoManager.maxUndoStored) { UndoRedoManager.maxUndoStored = maxUndoStored; }
+            if (maxUndoStored != UndoRedo.Global.MaxUndoStored)
+            {
+                UndoRedo.Global.MaxUndoStored = maxUndoStored;
+            }
 
             if (Input.GetKey(ActionKey))
             {
                 if (Input.GetKeyDown(UndoAction))
                 {
-                    UndoRedoManager.Undo();
+                    UndoRedo.Global.Undo();
                 }
                 else if (Input.GetKeyDown(RedoAction))
                 {
-                    UndoRedoManager.Redo();
+                    UndoRedo.Global.Redo();
                 }
             }
         }
@@ -309,7 +307,7 @@ namespace RuntimeGizmos
 
             while (!Input.GetMouseButtonUp(0))
             {
-                Ray mouseRay = myCamera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
                 Vector3 mousePosition = Geometry.LinePlaneIntersect(mouseRay.origin, mouseRay.direction, originalPivot, planeNormal);
                 bool isSnapping = Input.GetKey(translationSnapping);
 
@@ -495,7 +493,7 @@ namespace RuntimeGizmos
             }
             CommandGroup commandGroup = new();
             commandGroup.Set(transformCommands);
-            UndoRedoManager.Insert(commandGroup);
+            UndoRedo.Global.Insert(commandGroup);
 
             TotalRotationAmount = Quaternion.identity;
             TotalScaleAmount = 0;
@@ -560,29 +558,34 @@ namespace RuntimeGizmos
                 bool isAdding = Input.GetKey(AddSelection);
                 bool isRemoving = Input.GetKey(RemoveSelection);
 
-                if (Physics.Raycast(myCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity, selectionMask))
+                if (Physics.Raycast(camera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity, selectionMask))
                 {
-                    Transform target = hitInfo.transform;
+                    var obj = hitInfo.collider.GetComponentInParent<RuntimeEditor>();
+                    if (obj != null)
+                    {
 
-                    if (isAdding)
-                    {
-                        AddTarget(target);
-                    }
-                    else if (isRemoving)
-                    {
-                        RemoveTarget(target);
-                    }
-                    else if (!isAdding && !isRemoving)
-                    {
-                        ClearAndAddTarget(target);
+                        Transform target = obj.transform;
+
+                        if (isAdding)
+                        {
+                            AddTarget(target);
+                        }
+                        else if (isRemoving)
+                        {
+                            RemoveTarget(target);
+                        }
+                        else if (!isAdding && !isRemoving)
+                        {
+                            ClearAndAddTarget(target);
+                        }
+
+                        return;
                     }
                 }
-                else
+
+                if (!isAdding && !isRemoving)
                 {
-                    if (!isAdding && !isRemoving)
-                    {
-                        ClearTargets();
-                    }
+                    ClearTargets();
                 }
             }
         }
@@ -594,7 +597,7 @@ namespace RuntimeGizmos
                 if (targetRoots.ContainsKey(target)) return;
                 if (children.Contains(target)) return;
 
-                if (addCommand) UndoRedoManager.Insert(new AddTargetCommand(this, target, targetRootsOrdered));
+                if (addCommand) UndoRedo.Global.Insert(new AddTargetCommand(this, target, targetRootsOrdered));
 
                 AddTargetRoot(target);
                 AddTargetHighlightedRenderers(target);
@@ -609,7 +612,7 @@ namespace RuntimeGizmos
             {
                 if (!targetRoots.ContainsKey(target)) return;
 
-                if (addCommand) UndoRedoManager.Insert(new RemoveTargetCommand(this, target));
+                if (addCommand) UndoRedo.Global.Insert(new RemoveTargetCommand(this, target));
 
                 RemoveTargetHighlightedRenderers(target);
                 RemoveTargetRoot(target);
@@ -620,7 +623,7 @@ namespace RuntimeGizmos
 
         public void ClearTargets(bool addCommand = true)
         {
-            if (addCommand) UndoRedoManager.Insert(new ClearTargetsCommand(this, targetRootsOrdered));
+            if (addCommand) UndoRedo.Global.Insert(new ClearTargetsCommand(this, targetRootsOrdered));
 
             ClearAllHighlightedRenderers();
             targetRoots.Clear();
@@ -630,7 +633,7 @@ namespace RuntimeGizmos
 
         void ClearAndAddTarget(Transform target)
         {
-            UndoRedoManager.Insert(new ClearAndAddTargetCommand(this, target, targetRootsOrdered));
+            UndoRedo.Global.Insert(new ClearAndAddTargetCommand(this, target, targetRootsOrdered));
 
             ClearTargets(false);
             AddTarget(target, false);
@@ -882,7 +885,7 @@ namespace RuntimeGizmos
             else if (zClosestDistance <= minSelectedDistanceCheck && zClosestDistance <= xClosestDistance && zClosestDistance <= yClosestDistance) SetTranslatingAxis(type, Axis.Z);
             else if (type == TransformType.Rotate && MainTargetRoot != null)
             {
-                Ray mouseRay = myCamera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
                 Vector3 mousePlaneHit = Geometry.LinePlaneIntersect(mouseRay.origin, mouseRay.direction, PivotPoint, (transform.position - PivotPoint).normalized);
                 if ((PivotPoint - mousePlaneHit).sqrMagnitude <= GetHandleLength(TransformType.Rotate).Squared()) SetTranslatingAxis(type, Axis.Any);
             }
@@ -890,7 +893,7 @@ namespace RuntimeGizmos
 
         float ClosestDistanceFromMouseToLines(List<Vector3> lines)
         {
-            Ray mouseRay = myCamera.ScreenPointToRay(Input.mousePosition);
+            Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
 
             float closestDistance = float.MaxValue;
             for (int i = 0; i + 1 < lines.Count; i++)
@@ -911,7 +914,7 @@ namespace RuntimeGizmos
 
             if (planePoints.Count >= 4)
             {
-                Ray mouseRay = myCamera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
 
                 for (int i = 0; i < planePoints.Count; i += 4)
                 {
@@ -947,8 +950,8 @@ namespace RuntimeGizmos
         {
             if (MainTargetRoot == null) return 0f;
 
-            if (myCamera.orthographic) return Mathf.Max(.01f, myCamera.orthographicSize * 2f);
-            return Mathf.Max(.01f, Mathf.Abs(ExtVector3.MagnitudeInDirection(PivotPoint - transform.position, myCamera.transform.forward)));
+            if (camera.orthographic) return Mathf.Max(.01f, camera.orthographicSize * 2f);
+            return Mathf.Max(.01f, Mathf.Abs(ExtVector3.MagnitudeInDirection(PivotPoint - transform.position, camera.transform.forward)));
         }
 
         void SetLines()
@@ -994,7 +997,7 @@ namespace RuntimeGizmos
 
             if (TranslatingTypeContains(TransformType.Move))
             {
-                Vector3 pivotToCamera = myCamera.transform.position - PivotPoint;
+                Vector3 pivotToCamera = camera.transform.position - PivotPoint;
                 float cameraXSign = Mathf.Sign(Vector3.Dot(axisInfo.xDirection, pivotToCamera));
                 float cameraYSign = Mathf.Sign(Vector3.Dot(axisInfo.yDirection, pivotToCamera));
                 float cameraZSign = Mathf.Sign(Vector3.Dot(axisInfo.zDirection, pivotToCamera));
@@ -1179,6 +1182,11 @@ namespace RuntimeGizmos
 
                 lastPoint = nextPoint;
             }
+        }
+
+        void Reset()
+        {
+            camera = GetComponent<Camera>();
         }
     }
 }

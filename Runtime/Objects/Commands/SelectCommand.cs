@@ -20,14 +20,14 @@ namespace RuntimeGizmos.Commands
 		public abstract void UnExecute();
 	}
 
-	public class AddTargetCommand : SelectCommand
+	public sealed class AddTargetCommand : SelectCommand
 	{
-		readonly List<Transform> targetRoots = new List<Transform>();
+		private readonly List<Transform> targetRoots = new ();
 
 		public AddTargetCommand(TransformGizmo transformGizmo, Transform target, List<Transform> targetRoots) : base(transformGizmo, target)
 		{
-			//Since we might have had a child selected and then selected the parent, the child would have been removed from the selected,
-			//so we store all the targetRoots before we add so that if we undo we can properly have the children selected again.
+			// Since we might have had a child selected and then selected the parent, the child would have been removed from the selected,
+			// so we store all the targetRoots before we add so that if we undo we can properly have the children selected again.
 			this.targetRoots.AddRange(targetRoots);
 		}
 
@@ -47,7 +47,7 @@ namespace RuntimeGizmos.Commands
 		}
 	}
 
-	public class RemoveTargetCommand : SelectCommand
+	public sealed class RemoveTargetCommand : SelectCommand
 	{
 		public RemoveTargetCommand(TransformGizmo transformGizmo, Transform target) : base(transformGizmo, target) { }
 
@@ -62,9 +62,9 @@ namespace RuntimeGizmos.Commands
 		}
 	}
 
-	public class ClearTargetsCommand : SelectCommand
+	public sealed class ClearTargetsCommand : SelectCommand
 	{
-		readonly List<Transform> targetRoots = new List<Transform>();
+		private readonly List<Transform> targetRoots = new();
 
 		public ClearTargetsCommand(TransformGizmo transformGizmo, List<Transform> targetRoots) : base(transformGizmo, null)
 		{
@@ -87,7 +87,7 @@ namespace RuntimeGizmos.Commands
 
 	public class ClearAndAddTargetCommand : SelectCommand
 	{
-		readonly List<Transform> targetRoots = new List<Transform>();
+		private readonly List<Transform> targetRoots = new();
 
 		public ClearAndAddTargetCommand(TransformGizmo transformGizmo, Transform target, List<Transform> targetRoots) : base(transformGizmo, target)
 		{
