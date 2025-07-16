@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace RuntimeGizmos
 {
-	public class AxisVectors
+	public sealed class AxisVectors
 	{
 		public List<Vector3> x = new();
 		public List<Vector3> y = new();
