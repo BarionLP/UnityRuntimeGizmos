@@ -560,7 +560,7 @@ namespace RuntimeGizmos
 
                 if (Physics.Raycast(camera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity, selectionMask))
                 {
-                    var obj = hitInfo.collider.GetComponentInParent<RuntimeEditor>();
+                    var obj = hitInfo.collider.GetComponentInParent<RuntimeEditable>();
                     if (obj != null)
                     {
 
