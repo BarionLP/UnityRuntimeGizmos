@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
 using System.Collections.Generic;
-using System.Collections;
 using CommandUndoRedo;
 using RuntimeGizmos.Commands;
+using UnityEngine.InputSystem;
 
 namespace RuntimeGizmos
 {
@@ -21,61 +21,50 @@ namespace RuntimeGizmos
         public CenterType centerType = CenterType.All;
         public ScaleType scaleType = ScaleType.FromPoint;
 
-        // These are the same as the unity editor hotkeys
-        public KeyCode SetMoveType = KeyCode.W;
-        public KeyCode SetRotateType = KeyCode.E;
-        public KeyCode SetScaleType = KeyCode.R;
-        //public KeyCode SetRectToolType = KeyCode.T;
-        public KeyCode SetAllTransformType = KeyCode.Y;
-        public KeyCode SetSpaceToggle = KeyCode.X;
-        public KeyCode SetPivotModeToggle = KeyCode.Z;
-        public KeyCode SetCenterTypeToggle = KeyCode.C;
-        public KeyCode SetScaleTypeToggle = KeyCode.S;
-        public KeyCode translationSnapping = KeyCode.LeftControl;
-        public KeyCode AddSelection = KeyCode.LeftShift;
-        public KeyCode RemoveSelection = KeyCode.LeftControl;
-        public KeyCode ActionKey = KeyCode.LeftControl; // you should disable unity shortcuts at runtime so they do not interfere
-        public KeyCode UndoAction = KeyCode.Z;
-        public KeyCode RedoAction = KeyCode.Y;
+        public event Action<TransformTypeChangingEventArgs> OnTransformTypeChanging;
 
-        public float movementSnap = .25f;
-        public float rotationSnap = 15f;
-        public float scaleSnap = 1f;
+        [Header("Input Actions")]
+        [SerializeField] private InputActionReference LeftMouseButton;
+        [SerializeField] private InputActionReference SelectMoveTool;
+        [SerializeField] private InputActionReference SelectRotateTool;
+        [SerializeField] private InputActionReference SelectScaleTool;
+        [SerializeField] private InputActionReference SelectMultiTool;
+        [SerializeField] private InputActionReference ToggleCenterType; // KeyCode.C
+        [SerializeField] private InputActionReference TogglePivot; // KeyCode.Z
+        [SerializeField] private InputActionReference ToggleScaleType; // KeyCode.S
+        [SerializeField] private InputActionReference ToggleTransformSpace; // KeyCode.X
+        [SerializeField] private InputActionReference SnapTranslation; // KeyCode.LeftControl
+        [SerializeField] private InputActionReference AddSelection; // KeyCode.LeftShift
+        [SerializeField] private InputActionReference RemoveSelection; // KeyCode.LeftControl
+        [SerializeField] private InputActionReference Undo;
+        [SerializeField] private InputActionReference Redo;
 
-        public float handleLength = .25f;
-        public float handleWidth = .003f;
-        public float planeSize = .035f;
-        public float triangleSize = .03f;
-        public float boxSize = .03f;
-        public int circleDetail = 40;
-        public float allMoveHandleLengthMultiplier = 1f;
-        public float allRotateHandleLengthMultiplier = 1.4f;
-        public float allScaleHandleLengthMultiplier = 1.6f;
-        public float minSelectedDistanceCheck = .01f;
-        public float moveSpeedMultiplier = 1f;
-        public float scaleSpeedMultiplier = 1f;
-        public float rotateSpeedMultiplier = 1f;
-        public float allRotateSpeedMultiplier = 20f;
+        [SerializeField] private float movementSnap = .25f;
+        [SerializeField] private float rotationSnap = 15f;
+        [SerializeField] private float scaleSnap = 1f;
 
-        public bool useFirstSelectedAsMain = true;
+        [SerializeField] private float handleLength = .25f;
+        [SerializeField] private float handleWidth = .003f;
+        [SerializeField] private float planeSize = .035f;
+        [SerializeField] private float triangleSize = .03f;
+        [SerializeField] private float boxSize = .03f;
+        [SerializeField] private int circleDetail = 40;
+        [SerializeField] private float allMoveHandleLengthMultiplier = 1f;
+        [SerializeField] private float allRotateHandleLengthMultiplier = 1.4f;
+        [SerializeField] private float allScaleHandleLengthMultiplier = 1.6f;
+        [SerializeField] private float minSelectedDistanceCheck = .01f;
+        [SerializeField] private float moveSpeedMultiplier = 1f;
+        [SerializeField] private float scaleSpeedMultiplier = 1f;
+        [SerializeField] private float rotateSpeedMultiplier = 1f;
+        [SerializeField] private float allRotateSpeedMultiplier = 20f;
+
+        [SerializeField] private bool useFirstSelectedAsMain = true;
 
         //If circularRotationMethod is true, when rotating you will need to move your mouse around the object as if turning a wheel.
         //If circularRotationMethod is false, when rotating you can just click and drag in a line to rotate.
-        public bool circularRotationMethod;
-
-        //Mainly for if you want the pivot point to update correctly if selected objects are moving outside the transformgizmo.
-        //Might be poor on performance if lots of objects are selected...
-        public bool forceUpdatePivotPointOnChange = true;
-
+        [SerializeField] private bool circularRotationMethod;
         [SerializeField] private int maxUndoStored = 100;
-
-        public bool manuallyHandleGizmo;
-
-        public LayerMask selectionMask = Physics.DefaultRaycastLayers;
-
-        public Action onCheckForSelectedAxis;
-        public Action onDrawCustomGizmo;
-
+        [SerializeField] private LayerMask selectionMask = Physics.DefaultRaycastLayers;
         [SerializeField] private new Camera camera;
 
         public bool IsTransforming { get; private set; }
@@ -83,7 +72,7 @@ namespace RuntimeGizmos
         public Quaternion TotalRotationAmount { get; private set; }
         public Axis TranslatingAxis => nearAxis;
         public Axis TranslatingAxisPlane => planeAxis;
-        public bool HasTranslatingAxisPlane => TranslatingAxisPlane != Axis.None && TranslatingAxisPlane != Axis.Any;
+        public bool HasTranslatingAxisPlane => TranslatingAxisPlane is not Axis.None and not Axis.Any;
         public TransformType TransformingType => translatingType;
 
         public Vector3 PivotPoint { get; private set; }
@@ -121,6 +110,21 @@ namespace RuntimeGizmos
                 return;
             }
             Instance = this;
+
+            UndoRedo.Global.MaxUndoStored = maxUndoStored;
+
+            RegisterNullSafe(LeftMouseButton, TransformSelected);
+
+            RegisterNullSafe(SelectMoveTool, SelectMoveToolCmd);
+            RegisterNullSafe(SelectRotateTool, SelectRotateToolCmd);
+            RegisterNullSafe(SelectScaleTool, SelectScaleToolCmd);
+            RegisterNullSafe(SelectMultiTool, SelectMultiToolCmd);
+            RegisterNullSafe(TogglePivot, TogglePivotCmd);
+            RegisterNullSafe(ToggleCenterType, ToggleCenterTypeCmd);
+            RegisterNullSafe(ToggleScaleType, ToggleScaleTypeCmd);
+            RegisterNullSafe(ToggleTransformSpace, ToggleSpaceCmd);
+            RegisterNullSafe(Undo, UndoCmd);
+            RegisterNullSafe(Redo, RedoCmd);
         }
 
         void OnDisable()
@@ -129,7 +133,20 @@ namespace RuntimeGizmos
             {
                 Instance = null;
             }
-            ClearTargets(); // Just so things gets cleaned up, such as removing any materials we placed on objects.
+            ClearTargets();
+
+            UnregisterNullSafe(LeftMouseButton, TransformSelected);
+
+            UnregisterNullSafe(SelectMoveTool, SelectMoveToolCmd);
+            UnregisterNullSafe(SelectRotateTool, SelectRotateToolCmd);
+            UnregisterNullSafe(SelectScaleTool, SelectScaleToolCmd);
+            UnregisterNullSafe(SelectMultiTool, SelectMultiToolCmd);
+            UnregisterNullSafe(TogglePivot, TogglePivotCmd);
+            UnregisterNullSafe(ToggleCenterType, ToggleCenterTypeCmd);
+            UnregisterNullSafe(ToggleScaleType, ToggleScaleTypeCmd);
+            UnregisterNullSafe(ToggleTransformSpace, ToggleSpaceCmd);
+            UnregisterNullSafe(Undo, UndoCmd);
+            UnregisterNullSafe(Redo, RedoCmd);
         }
 
         void OnDestroy()
@@ -139,24 +156,9 @@ namespace RuntimeGizmos
 
         void Update()
         {
-            HandleUndoRedo();
+            if (!IsTransforming) translatingType = transformType;
 
-            SetSpaceAndType();
-
-            if (manuallyHandleGizmo)
-            {
-                if (onCheckForSelectedAxis != null) onCheckForSelectedAxis();
-            }
-            else
-            {
-                SetNearAxis();
-            }
-
-            GetTarget();
-
-            if (MainTargetRoot == null) return;
-
-            TransformSelected();
+            SetNearAxis();
         }
 
         void LateUpdate()
@@ -166,34 +168,7 @@ namespace RuntimeGizmos
             //We run this in lateupdate since coroutines run after update and we want our gizmos to have the updated target transform position after TransformSelected()
             SetAxisInfo();
 
-            if (manuallyHandleGizmo)
-            {
-                onDrawCustomGizmo?.Invoke();
-            }
-            else
-            {
-                SetLines();
-            }
-        }
-
-        void HandleUndoRedo()
-        {
-            if (maxUndoStored != UndoRedo.Global.MaxUndoStored)
-            {
-                UndoRedo.Global.MaxUndoStored = maxUndoStored;
-            }
-
-            if (Input.GetKey(ActionKey))
-            {
-                if (Input.GetKeyDown(UndoAction))
-                {
-                    UndoRedo.Global.Undo();
-                }
-                else if (Input.GetKeyDown(RedoAction))
-                {
-                    UndoRedo.Global.Redo();
-                }
-            }
+            SetLines();
         }
 
         // We only support scaling in local space.
@@ -210,78 +185,36 @@ namespace RuntimeGizmos
         public float GetHandleLength(TransformType type, Axis axis = Axis.None, bool multiplyDistanceMultiplier = true)
         {
             float length = handleLength;
-            if (transformType == TransformType.All)
+            if (transformType is TransformType.All)
             {
-                if (type == TransformType.Move) length *= allMoveHandleLengthMultiplier;
-                if (type == TransformType.Rotate) length *= allRotateHandleLengthMultiplier;
-                if (type == TransformType.Scale) length *= allScaleHandleLengthMultiplier;
+                if (type is TransformType.Move) length *= allMoveHandleLengthMultiplier;
+                if (type is TransformType.Rotate) length *= allRotateHandleLengthMultiplier;
+                if (type is TransformType.Scale) length *= allScaleHandleLengthMultiplier;
             }
 
             if (multiplyDistanceMultiplier) length *= GetDistanceMultiplier();
 
-            if (type == TransformType.Scale && IsTransforming && (TranslatingAxis == axis || TranslatingAxis == Axis.Any)) length += TotalScaleAmount;
+            if (type is TransformType.Scale && IsTransforming && (TranslatingAxis == axis || TranslatingAxis == Axis.Any)) length += TotalScaleAmount;
 
             return length;
         }
 
-        void SetSpaceAndType()
+        void TransformSelected(InputAction.CallbackContext context)
         {
-            if (Input.GetKey(ActionKey)) return;
-
-            if (Input.GetKeyDown(SetMoveType)) transformType = TransformType.Move;
-            else if (Input.GetKeyDown(SetRotateType)) transformType = TransformType.Rotate;
-            else if (Input.GetKeyDown(SetScaleType)) transformType = TransformType.Scale;
-            //else if(Input.GetKeyDown(SetRectToolType)) type = TransformType.RectTool;
-            else if (Input.GetKeyDown(SetAllTransformType)) transformType = TransformType.All;
-
-            if (!IsTransforming) translatingType = transformType;
-
-            if (Input.GetKeyDown(SetPivotModeToggle))
+            if (nearAxis is Axis.None)
             {
-                if (pivot == TransformPivot.Pivot) pivot = TransformPivot.Center;
-                else if (pivot == TransformPivot.Center) pivot = TransformPivot.Pivot;
-
-                SetPivotPoint();
+                GetTarget(context);
             }
 
-            if (Input.GetKeyDown(SetCenterTypeToggle))
+            if (MainTargetRoot == null || nearAxis is Axis.None)
             {
-                if (centerType == CenterType.All) centerType = CenterType.Solo;
-                else if (centerType == CenterType.Solo) centerType = CenterType.All;
-
-                SetPivotPoint();
+                return;
             }
 
-            if (Input.GetKeyDown(SetSpaceToggle))
-            {
-                if (space == TransformSpace.Global) space = TransformSpace.Local;
-                else if (space == TransformSpace.Local) space = TransformSpace.Global;
-            }
-
-            if (Input.GetKeyDown(SetScaleTypeToggle))
-            {
-                if (scaleType == ScaleType.FromPoint) scaleType = ScaleType.FromPointOffset;
-                else if (scaleType == ScaleType.FromPointOffset) scaleType = ScaleType.FromPoint;
-            }
-
-            if (transformType == TransformType.Scale)
-            {
-                if (pivot == TransformPivot.Pivot) scaleType = ScaleType.FromPoint; //FromPointOffset can be inaccurate and should only really be used in Center mode if desired.
-            }
+            _ = TransformSelected(translatingType);
         }
 
-        void TransformSelected()
-        {
-            if (MainTargetRoot != null)
-            {
-                if (nearAxis != Axis.None && Input.GetMouseButtonDown(0))
-                {
-                    StartCoroutine(TransformSelected(translatingType));
-                }
-            }
-        }
-
-        IEnumerator TransformSelected(TransformType transType)
+        async Awaitable TransformSelected(TransformType transType)
         {
             IsTransforming = true;
             TotalScaleAmount = 0;
@@ -289,8 +222,7 @@ namespace RuntimeGizmos
 
             Vector3 originalPivot = PivotPoint;
 
-            Vector3 otherAxis1, otherAxis2;
-            Vector3 axis = GetNearAxisDirection(out otherAxis1, out otherAxis2);
+            Vector3 axis = GetNearAxisDirection(out Vector3 otherAxis1, out Vector3 otherAxis2);
             Vector3 planeNormal = HasTranslatingAxisPlane ? axis : (transform.position - originalPivot).normalized;
             Vector3 projectedAxis = Vector3.ProjectOnPlane(axis, planeNormal).normalized;
             Vector3 previousMousePosition = Vector3.zero;
@@ -305,17 +237,17 @@ namespace RuntimeGizmos
                 transformCommands.Add(new TransformCommand(this, targetRootsOrdered[i]));
             }
 
-            while (!Input.GetMouseButtonUp(0))
+            while (LeftMouseButton.action.IsPressed())
             {
-                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Mouse.current.position.value);
                 Vector3 mousePosition = Geometry.LinePlaneIntersect(mouseRay.origin, mouseRay.direction, originalPivot, planeNormal);
-                bool isSnapping = Input.GetKey(translationSnapping);
+                bool isSnapping = SnapTranslation != null && SnapTranslation.action.IsPressed();
 
                 if (previousMousePosition != Vector3.zero && mousePosition != Vector3.zero)
                 {
                     if (transType == TransformType.Move)
                     {
-                        Vector3 movement = Vector3.zero;
+                        Vector3 movement;
 
                         if (HasTranslatingAxisPlane)
                         {
@@ -383,8 +315,7 @@ namespace RuntimeGizmos
                             currentSnapScaleAmount += scaleAmount;
                             scaleAmount = 0;
 
-                            float remainder;
-                            float snapAmount = CalculateSnapAmount(scaleSnap, currentSnapScaleAmount, out remainder);
+                            float snapAmount = CalculateSnapAmount(scaleSnap, currentSnapScaleAmount, out var remainder);
 
                             if (snapAmount != 0)
                             {
@@ -393,7 +324,6 @@ namespace RuntimeGizmos
                             }
                         }
 
-                        // WARNING - There is a bug in unity 5.4 and 5.5 that causes InverseTransformDirection to be affected by scale which will break negative scaling. Not tested, but updating to 5.4.2 should fix it - https://issuetracker.unity3d.com/issues/transformdirection-and-inversetransformdirection-operations-are-affected-by-scale
                         Vector3 localAxis = (GetProperTransformSpace() == TransformSpace.Local && nearAxis != Axis.Any) ? MainTargetRoot.InverseTransformDirection(axis) : axis;
                         Vector3 targetScaleAmount;
                         if (nearAxis == Axis.Any) targetScaleAmount = ExtVector3.Abs(MainTargetRoot.localScale.normalized) * scaleAmount;
@@ -426,12 +356,12 @@ namespace RuntimeGizmos
                     }
                     else if (transType == TransformType.Rotate)
                     {
-                        float rotateAmount = 0;
                         Vector3 rotationAxis = axis;
 
+                        float rotateAmount;
                         if (nearAxis == Axis.Any)
                         {
-                            Vector3 rotation = transform.TransformDirection(new Vector3(Input.GetAxis("Mouse Y"), -Input.GetAxis("Mouse X"), 0));
+                            Vector3 rotation = transform.TransformDirection(new Vector3(Mouse.current.delta.y.value, -Mouse.current.delta.x.value, 0));
                             Quaternion.Euler(rotation).ToAngleAxis(out rotateAmount, out rotationAxis);
                             rotateAmount *= allRotateSpeedMultiplier;
                         }
@@ -454,8 +384,7 @@ namespace RuntimeGizmos
                             currentSnapRotationAmount += rotateAmount;
                             rotateAmount = 0;
 
-                            float remainder;
-                            float snapAmount = CalculateSnapAmount(rotationSnap, currentSnapRotationAmount, out remainder);
+                            float snapAmount = CalculateSnapAmount(rotationSnap, currentSnapRotationAmount, out float remainder);
 
                             if (snapAmount != 0)
                             {
@@ -484,7 +413,7 @@ namespace RuntimeGizmos
 
                 previousMousePosition = mousePosition;
 
-                yield return null;
+                await Awaitable.EndOfFrameAsync();
             }
 
             for (int i = 0; i < transformCommands.Count; i++)
@@ -551,42 +480,36 @@ namespace RuntimeGizmos
             return Vector3.zero;
         }
 
-        void GetTarget()
+        private void GetTarget(InputAction.CallbackContext context)
         {
-            if (nearAxis == Axis.None && Input.GetMouseButtonDown(0))
+            bool isAdding = AddSelection != null && AddSelection.action.IsPressed();
+            bool isRemoving = RemoveSelection != null && RemoveSelection.action.IsPressed();
+
+            if (Physics.Raycast(camera.ScreenPointToRay(Mouse.current.position.value), out RaycastHit hitInfo, Mathf.Infinity, selectionMask))
             {
-                bool isAdding = Input.GetKey(AddSelection);
-                bool isRemoving = Input.GetKey(RemoveSelection);
-
-                if (Physics.Raycast(camera.ScreenPointToRay(Input.mousePosition), out RaycastHit hitInfo, Mathf.Infinity, selectionMask))
+                var obj = hitInfo.collider.GetComponentInParent<RuntimeEditable>();
+                if (obj != null)
                 {
-                    var obj = hitInfo.collider.GetComponentInParent<RuntimeEditable>();
-                    if (obj != null)
+                    if (isAdding)
                     {
-
-                        Transform target = obj.transform;
-
-                        if (isAdding)
-                        {
-                            AddTarget(target);
-                        }
-                        else if (isRemoving)
-                        {
-                            RemoveTarget(target);
-                        }
-                        else if (!isAdding && !isRemoving)
-                        {
-                            ClearAndAddTarget(target);
-                        }
-
-                        return;
+                        AddTarget(obj.transform);
                     }
-                }
+                    else if (isRemoving)
+                    {
+                        RemoveTarget(obj.transform);
+                    }
+                    else if (!isAdding && !isRemoving)
+                    {
+                        ClearAndAddTarget(obj.transform);
+                    }
 
-                if (!isAdding && !isRemoving)
-                {
-                    ClearTargets();
+                    return;
                 }
+            }
+
+            if (!isAdding && !isRemoving)
+            {
+                ClearTargets();
             }
         }
 
@@ -746,36 +669,38 @@ namespace RuntimeGizmos
 
         public void SetPivotPoint()
         {
-            if (MainTargetRoot != null)
+            if (MainTargetRoot == null)
             {
-                if (pivot == TransformPivot.Pivot)
+                return;
+            }
+
+            if (pivot is TransformPivot.Pivot)
+            {
+                PivotPoint = MainTargetRoot.position;
+            }
+            else if (pivot is TransformPivot.Center)
+            {
+                totalCenterPivotPoint = Vector3.zero;
+
+                Dictionary<Transform, TargetInfo>.Enumerator targetsEnumerator = targetRoots.GetEnumerator();
+                while (targetsEnumerator.MoveNext())
                 {
-                    PivotPoint = MainTargetRoot.position;
+                    Transform target = targetsEnumerator.Current.Key;
+                    TargetInfo info = targetsEnumerator.Current.Value;
+                    info.centerPivotPoint = target.GetCenter(centerType);
+
+                    totalCenterPivotPoint += info.centerPivotPoint;
                 }
-                else if (pivot == TransformPivot.Center)
+
+                totalCenterPivotPoint /= targetRoots.Count;
+
+                if (centerType == CenterType.Solo)
                 {
-                    totalCenterPivotPoint = Vector3.zero;
-
-                    Dictionary<Transform, TargetInfo>.Enumerator targetsEnumerator = targetRoots.GetEnumerator();
-                    while (targetsEnumerator.MoveNext())
-                    {
-                        Transform target = targetsEnumerator.Current.Key;
-                        TargetInfo info = targetsEnumerator.Current.Value;
-                        info.centerPivotPoint = target.GetCenter(centerType);
-
-                        totalCenterPivotPoint += info.centerPivotPoint;
-                    }
-
-                    totalCenterPivotPoint /= targetRoots.Count;
-
-                    if (centerType == CenterType.Solo)
-                    {
-                        PivotPoint = targetRoots[MainTargetRoot].centerPivotPoint;
-                    }
-                    else if (centerType == CenterType.All)
-                    {
-                        PivotPoint = totalCenterPivotPoint;
-                    }
+                    PivotPoint = targetRoots[MainTargetRoot].centerPivotPoint;
+                }
+                else if (centerType == CenterType.All)
+                {
+                    PivotPoint = totalCenterPivotPoint;
                 }
             }
         }
@@ -817,22 +742,22 @@ namespace RuntimeGizmos
             float distanceMultiplier = GetDistanceMultiplier();
             float handleMinSelectedDistanceCheck = (this.minSelectedDistanceCheck + handleWidth) * distanceMultiplier;
 
-            if (nearAxis == Axis.None && (TransformTypeContains(TransformType.Move) || TransformTypeContains(TransformType.Scale)))
+            if (nearAxis is Axis.None && (TransformTypeContains(TransformType.Move) || TransformTypeContains(TransformType.Scale)))
             {
                 //Important to check scale lines before move lines since in TransformType.All the move planes would block the scales center scale all gizmo.
-                if (nearAxis == Axis.None && TransformTypeContains(TransformType.Scale))
+                if (nearAxis is Axis.None && TransformTypeContains(TransformType.Scale))
                 {
                     float tipMinSelectedDistanceCheck = (this.minSelectedDistanceCheck + boxSize) * distanceMultiplier;
                     HandleNearestPlanes(TransformType.Scale, handleSquares, tipMinSelectedDistanceCheck);
                 }
 
-                if (nearAxis == Axis.None && TransformTypeContains(TransformType.Move))
+                if (nearAxis is Axis.None && TransformTypeContains(TransformType.Move))
                 {
                     //Important to check the planes first before the handle tip since it makes selecting the planes easier.
                     float planeMinSelectedDistanceCheck = (this.minSelectedDistanceCheck + planeSize) * distanceMultiplier;
                     HandleNearestPlanes(TransformType.Move, handlePlanes, planeMinSelectedDistanceCheck);
 
-                    if (nearAxis != Axis.None)
+                    if (nearAxis is not Axis.None)
                     {
                         planeAxis = nearAxis;
                     }
@@ -843,15 +768,15 @@ namespace RuntimeGizmos
                     }
                 }
 
-                if (nearAxis == Axis.None)
+                if (nearAxis is Axis.None)
                 {
                     //Since Move and Scale share the same handle line, we give Move the priority.
-                    TransformType transType = transformType == TransformType.All ? TransformType.Move : transformType;
+                    TransformType transType = transformType is TransformType.All ? TransformType.Move : transformType;
                     HandleNearestLines(transType, handleLines, handleMinSelectedDistanceCheck);
                 }
             }
 
-            if (nearAxis == Axis.None && TransformTypeContains(TransformType.Rotate))
+            if (nearAxis is Axis.None && TransformTypeContains(TransformType.Rotate))
             {
                 HandleNearestLines(TransformType.Rotate, circlesLines, handleMinSelectedDistanceCheck);
             }
@@ -885,7 +810,7 @@ namespace RuntimeGizmos
             else if (zClosestDistance <= minSelectedDistanceCheck && zClosestDistance <= xClosestDistance && zClosestDistance <= yClosestDistance) SetTranslatingAxis(type, Axis.Z);
             else if (type == TransformType.Rotate && MainTargetRoot != null)
             {
-                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Mouse.current.position.value);
                 Vector3 mousePlaneHit = Geometry.LinePlaneIntersect(mouseRay.origin, mouseRay.direction, PivotPoint, (transform.position - PivotPoint).normalized);
                 if ((PivotPoint - mousePlaneHit).sqrMagnitude <= GetHandleLength(TransformType.Rotate).Squared()) SetTranslatingAxis(type, Axis.Any);
             }
@@ -893,7 +818,7 @@ namespace RuntimeGizmos
 
         float ClosestDistanceFromMouseToLines(List<Vector3> lines)
         {
-            Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
+            Ray mouseRay = camera.ScreenPointToRay(Mouse.current.position.value);
 
             float closestDistance = float.MaxValue;
             for (int i = 0; i + 1 < lines.Count; i++)
@@ -914,7 +839,7 @@ namespace RuntimeGizmos
 
             if (planePoints.Count >= 4)
             {
-                Ray mouseRay = camera.ScreenPointToRay(Input.mousePosition);
+                Ray mouseRay = camera.ScreenPointToRay(Mouse.current.position.value);
 
                 for (int i = 0; i < planePoints.Count; i += 4)
                 {
@@ -1184,9 +1109,117 @@ namespace RuntimeGizmos
             }
         }
 
+        private void SelectMoveToolCmd(InputAction.CallbackContext context)
+        {
+            SetTransformType(TransformType.Move);
+        }
+        private void SelectRotateToolCmd(InputAction.CallbackContext context)
+        {
+            SetTransformType(TransformType.Rotate);
+        }
+        private void SelectScaleToolCmd(InputAction.CallbackContext context)
+        {
+            SetTransformType(TransformType.Scale);
+
+            if (pivot is TransformPivot.Pivot)
+            {
+                // FromPointOffset can be inaccurate and should only really be used in Center mode if desired.
+                scaleType = ScaleType.FromPoint;
+            }
+        }
+        private void SelectMultiToolCmd(InputAction.CallbackContext context)
+        {
+            SetTransformType(TransformType.All);
+        }
+        private void SetTransformType(TransformType newType)
+        {
+            OnTransformTypeChanging?.Invoke(new(transformType, newType));
+            transformType = newType;
+        }
+
+        private void TogglePivotCmd(InputAction.CallbackContext context)
+        {
+            pivot = pivot switch
+            {
+                TransformPivot.Pivot => TransformPivot.Center,
+                TransformPivot.Center => TransformPivot.Pivot,
+                _ => throw new InvalidOperationException(),
+            };
+
+            SetPivotPoint();
+        }
+
+        private void ToggleCenterTypeCmd(InputAction.CallbackContext context)
+        {
+            centerType = centerType switch
+            {
+                CenterType.All => CenterType.Solo,
+                CenterType.Solo => CenterType.All,
+                _ => throw new InvalidOperationException(),
+            };
+
+            SetPivotPoint();
+        }
+
+        private void ToggleScaleTypeCmd(InputAction.CallbackContext context)
+        {
+            scaleType = scaleType switch
+            {
+                ScaleType.FromPoint => ScaleType.FromPointOffset,
+                ScaleType.FromPointOffset => ScaleType.FromPoint,
+                _ => throw new InvalidOperationException(),
+            };
+        }
+
+        private void ToggleSpaceCmd(InputAction.CallbackContext context)
+        {
+            space = space switch
+            {
+                TransformSpace.Local => TransformSpace.Global,
+                TransformSpace.Global => TransformSpace.Local,
+                _ => throw new InvalidOperationException(),
+            };
+        }
+
+        private void UndoCmd(InputAction.CallbackContext context)
+        {
+            UndoRedo.Global.Undo();
+        }
+        private void RedoCmd(InputAction.CallbackContext context)
+        {
+            UndoRedo.Global.Redo();
+        }
+
+        private static void RegisterNullSafe(InputActionReference reference, Action<InputAction.CallbackContext> callback)
+        {
+            if (reference != null)
+            {
+                reference.action.performed += callback;
+            }
+        }
+        private static void UnregisterNullSafe(InputActionReference reference, Action<InputAction.CallbackContext> callback)
+        {
+            if (reference != null)
+            {
+                reference.action.performed -= callback;
+            }
+        }
+
         void Reset()
         {
             camera = GetComponent<Camera>();
         }
+    }
+
+    public readonly struct TransformTypeChangingEventArgs
+    {
+        public TransformTypeChangingEventArgs(TransformType current, TransformType @new)
+        {
+            Current = current;
+            New = @new;
+        }
+
+        public TransformType Current { get; }
+        public TransformType New { get; }
     }
 }
