@@ -1131,7 +1131,7 @@ namespace RuntimeGizmos
         {
             SetTransformType(TransformType.All);
         }
-        private void SetTransformType(TransformType newType)
+        public void SetTransformType(TransformType newType)
         {
             OnTransformTypeChanging?.Invoke(new(transformType, newType));
             transformType = newType;
