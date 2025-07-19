@@ -167,7 +167,7 @@ namespace RuntimeGizmos
         {
             if (MainTargetRoot == null) return;
 
-            //We run this in lateupdate since coroutines run after update and we want our gizmos to have the updated target transform position after TransformSelected()
+            // We run this in lateupdate since coroutines run after update and we want our gizmos to have the updated target transform position after TransformSelected()
             SetAxisInfo();
 
             SetLines();
@@ -745,7 +745,7 @@ namespace RuntimeGizmos
 
         void SetNearAxis()
         {
-            if (IsTransforming) return;
+            if (IsTransforming || Cursor.lockState is CursorLockMode.Locked) return;
 
             SetTranslatingAxis(transformType, Axis.None);
 
@@ -876,10 +876,7 @@ namespace RuntimeGizmos
 
         void SetAxisInfo()
         {
-            if (MainTargetRoot != null)
-            {
-                axisInfo.Set(MainTargetRoot, PivotPoint, GetProperTransformSpace());
-            }
+            axisInfo.Set(MainTargetRoot, PivotPoint, GetProperTransformSpace());
         }
 
         // This helps keep the size consistent no matter how far we are from it.
