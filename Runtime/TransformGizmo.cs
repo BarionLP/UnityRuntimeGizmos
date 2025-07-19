@@ -743,13 +743,13 @@ namespace RuntimeGizmos
             return currentAxisInfo;
         }
 
-        void SetNearAxis()
+        private void SetNearAxis()
         {
-            if (IsTransforming || Cursor.lockState is CursorLockMode.Locked) return;
+            if (IsTransforming) return;
 
             SetTranslatingAxis(transformType, Axis.None);
 
-            if (MainTargetRoot == null) return;
+            if (MainTargetRoot == null || Cursor.lockState is CursorLockMode.Locked) return;
 
             float distanceMultiplier = GetDistanceMultiplier();
             float handleMinSelectedDistanceCheck = (this.minSelectedDistanceCheck + handleWidth) * distanceMultiplier;
