@@ -40,6 +40,51 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleCenterType",
+                    "type": "Button",
+                    "id": "221e7fcb-94d6-48e1-82d8-edc8fe05ec8f",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "TogglePivot",
+                    "type": "Button",
+                    "id": "7bca3d37-09f6-4945-bbe3-bb1ff5c1aa7e",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleScaleType",
+                    "type": "Button",
+                    "id": "5d8d6669-f1a9-4da3-9e29-b6f0e4edb4a2",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleTransformSpace",
+                    "type": "Button",
+                    "id": "3be53e8b-ddbc-4a77-b664-0d231200c224",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Snapping",
+                    "type": "Button",
+                    "id": "e613d1fe-54a5-43f6-be2c-c448d0e7fce4",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -79,11 +124,66 @@
                 {
                     "name": "",
                     "id": "f9a7f47d-1bc6-46ad-b861-eeca52c9ed34",
-                    "path": "<Keyboard>/y",
+                    "path": "<Keyboard>/z",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Multi",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b6132ebb-5f28-47b7-9c0f-9a3313ce11d1",
+                    "path": "<Keyboard>/c",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ToggleCenterType",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "232652e9-f9af-4c55-a1aa-f65d25bb2e21",
+                    "path": "<Keyboard>/y",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "TogglePivot",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5c14b6c4-5502-4778-8ae2-4737fa304a3d",
+                    "path": "<Keyboard>/s",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ToggleScaleType",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "fc680a37-4322-41a4-a966-adc7a2b23f12",
+                    "path": "<Keyboard>/x",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ToggleTransformSpace",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "29f99427-f50c-45b9-abab-444164cca8cb",
+                    "path": "<Keyboard>/ctrl",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Snapping",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

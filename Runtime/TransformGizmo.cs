@@ -43,10 +43,10 @@ namespace RuntimeGizmos
         [SerializeField] private float rotationSnap = 15f;
         [SerializeField] private float scaleSnap = 1f;
 
-        [SerializeField] private float handleLength = .25f;
-        [SerializeField] private float handleWidth = .003f;
-        [SerializeField] private float planeSize = .035f;
-        [SerializeField] private float triangleSize = .03f;
+        [SerializeField] private float handleLength = .2f;
+        [SerializeField] private float handleWidth = .002f;
+        [SerializeField] private float planeSize = .03f;
+        [SerializeField] private float triangleSize = .02f;
         [SerializeField] private float boxSize = .03f;
         [SerializeField] private int circleDetail = 40;
         [SerializeField] private float allMoveHandleLengthMultiplier = 1f;
