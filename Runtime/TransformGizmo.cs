@@ -5,6 +5,7 @@ using CommandUndoRedo;
 using RuntimeGizmos.Commands;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using System.Linq;
 
 namespace RuntimeGizmos
 {
@@ -200,10 +201,17 @@ namespace RuntimeGizmos
             return length;
         }
 
+        private readonly List<RaycastResult> uiRaycastResults = new();
         void MouseClicked(InputAction.CallbackContext context)
         {
             if (Cursor.lockState is CursorLockMode.Locked) return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.RaycastAll(new(EventSystem.current) { position = Pointer.current.position.value }, uiRaycastResults);
+                var ishit = uiRaycastResults.Any(r => r.isValid);
+                uiRaycastResults.Clear();
+                if (ishit) return;
+            }
 
             if (nearAxis is Axis.None)
             {
