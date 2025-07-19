@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using CommandUndoRedo;
 using RuntimeGizmos.Commands;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 namespace RuntimeGizmos
 {
@@ -113,7 +114,7 @@ namespace RuntimeGizmos
 
             UndoRedo.Global.MaxUndoStored = maxUndoStored;
 
-            RegisterNullSafe(LeftMouseButton, TransformSelected);
+            RegisterNullSafe(LeftMouseButton, MouseClicked);
 
             RegisterNullSafe(SelectMoveTool, SelectMoveToolCmd);
             RegisterNullSafe(SelectRotateTool, SelectRotateToolCmd);
@@ -135,7 +136,7 @@ namespace RuntimeGizmos
             }
             ClearTargets();
 
-            UnregisterNullSafe(LeftMouseButton, TransformSelected);
+            UnregisterNullSafe(LeftMouseButton, MouseClicked);
 
             UnregisterNullSafe(SelectMoveTool, SelectMoveToolCmd);
             UnregisterNullSafe(SelectRotateTool, SelectRotateToolCmd);
@@ -199,8 +200,11 @@ namespace RuntimeGizmos
             return length;
         }
 
-        void TransformSelected(InputAction.CallbackContext context)
+        void MouseClicked(InputAction.CallbackContext context)
         {
+            if (Cursor.lockState is CursorLockMode.Locked) return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
             if (nearAxis is Axis.None)
             {
                 GetTarget(context);
