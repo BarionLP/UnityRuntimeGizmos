@@ -68,6 +68,8 @@ namespace RuntimeGizmos.Rendering
             {
                 foreach (var selected in data.Selected)
                 {
+                    var mesh = selected.TryGetComponent<MeshFilter>(out var filter) ? filter.mesh : selected.TryGetComponent<SkinnedMeshRenderer>(out var skinned) ? skinned.sharedMesh : null;
+                    if (mesh == null) continue; 
                     context.cmd.DrawMesh(selected.GetComponent<MeshFilter>().mesh, selected.transform.localToWorldMatrix, data.Outline, submeshIndex: 0, data.OutlineShaderPass);
                 }
             }
