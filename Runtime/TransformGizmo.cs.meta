@@ -18,6 +18,7 @@ MonoImporter:
   - RemoveSelection: {fileID: -8565336695041981265, guid: 20f2e548d99ac6344a1554c2f475ed1f, type: 3}
   - Undo: {fileID: -5004457046461612933, guid: 20f2e548d99ac6344a1554c2f475ed1f, type: 3}
   - Redo: {fileID: 4946824836313262435, guid: 20f2e548d99ac6344a1554c2f475ed1f, type: 3}
+  - Delete: {fileID: 8875387842063865986, guid: 20f2e548d99ac6344a1554c2f475ed1f, type: 3}
   - camera: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}

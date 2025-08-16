@@ -5,9 +5,9 @@ namespace RuntimeGizmos.Commands
 {
     public sealed class ClearAndAddTargetCommand : SelectCommand
 	{
-		private readonly List<Transform> targetRoots = new();
+		private readonly List<RuntimeEditable> targetRoots = new();
 
-		public ClearAndAddTargetCommand(TransformGizmo transformGizmo, Transform target, List<Transform> targetRoots) : base(transformGizmo, target)
+		public ClearAndAddTargetCommand(TransformGizmo transformGizmo, RuntimeEditable target, List<RuntimeEditable> targetRoots) : base(transformGizmo, target)
 		{
 			this.targetRoots.AddRange(targetRoots);
 		}

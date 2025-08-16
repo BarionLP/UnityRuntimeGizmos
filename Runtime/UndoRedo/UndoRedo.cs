@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace CommandUndoRedo
 {
     internal sealed class UndoRedo
@@ -9,16 +11,16 @@ namespace CommandUndoRedo
             set
             {
                 undoCommands.MaxLength = value;
-                redoCommands.MaxLength = value;
             }
         }
 
         private readonly DropoutStack<ICommand> undoCommands = new();
-        private readonly DropoutStack<ICommand> redoCommands = new();
+        private readonly Stack<ICommand> redoCommands = new(); // the amount of redos is limited implicitly by the amount of possible undos
 
         public UndoRedo(int maxUndoStored)
         {
             MaxUndoStored = maxUndoStored;
+            undoCommands.OnDropOut += static o => o.CleanUp();
         }
 
         public void Execute(ICommand command)

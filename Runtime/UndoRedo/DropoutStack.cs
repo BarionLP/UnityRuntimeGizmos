@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CommandUndoRedo
@@ -6,24 +7,27 @@ namespace CommandUndoRedo
 	{
 		int _maxLength = int.MaxValue;
 		public int MaxLength
-        {
-            get => _maxLength;
-            set
-            {
-                _maxLength = value;
+		{
+			get => _maxLength;
+			set
+			{
+				_maxLength = value;
 
-                if (Count > _maxLength)
-                {
-                    int leftover = Count - _maxLength;
-                    for (int i = 0; i < leftover; i++)
-                    {
-                        RemoveLast();
-                    }
-                }
-            }
-        }
+				if (Count > _maxLength)
+				{
+					var leftover = Count - _maxLength;
+					for (int i = 0; i < leftover; i++)
+					{
+						OnDropOut?.Invoke(Last.Value);
+						RemoveLast();
+					}
+				}
+			}
+		}
 
-        public DropoutStack(int maxLength = int.MaxValue)
+		public event Action<T> OnDropOut;
+
+		public DropoutStack(int maxLength = int.MaxValue)
 		{
 			MaxLength = maxLength;
 		}
@@ -32,6 +36,7 @@ namespace CommandUndoRedo
 		{
 			if (Count > 0 && Count + 1 > MaxLength)
 			{
+				OnDropOut?.Invoke(Last.Value);
 				RemoveLast();
 			}
 
@@ -43,9 +48,9 @@ namespace CommandUndoRedo
 
 		public T Pop()
 		{
-			T item = First.Value;
+			var item = First.Value;
 			RemoveFirst();
 			return item;
-		}
+		}		
 	}
 }

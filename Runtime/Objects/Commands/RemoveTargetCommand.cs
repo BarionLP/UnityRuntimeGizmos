@@ -4,16 +4,16 @@ namespace RuntimeGizmos.Commands
 {
     public sealed class RemoveTargetCommand : SelectCommand
 	{
-		public RemoveTargetCommand(TransformGizmo transformGizmo, Transform target) : base(transformGizmo, target) { }
+		public RemoveTargetCommand(TransformGizmo transformGizmo, RuntimeEditable target) : base(transformGizmo, target) { }
 
 		public override void Execute()
 		{
-			transformGizmo.RemoveTarget(target, false);
+			transformGizmo.RemoveTarget(target, addCommand: false);
 		}
 
 		public override void UnExecute()
 		{
-			transformGizmo.AddTarget(target, false);
+			transformGizmo.AddTarget(target, addCommand: false);
 		}
 	}
 }

@@ -40,6 +40,7 @@ namespace RuntimeGizmos
         [SerializeField] private InputActionReference RemoveSelection; // KeyCode.LeftControl
         [SerializeField] private InputActionReference Undo;
         [SerializeField] private InputActionReference Redo;
+        [SerializeField] private InputActionReference Delete;
 
         [SerializeField] private float movementSnap = .25f;
         [SerializeField] private float rotationSnap = 15f;
@@ -80,7 +81,7 @@ namespace RuntimeGizmos
         public Vector3 PivotPoint { get; private set; }
         Vector3 totalCenterPivotPoint;
 
-        public Transform MainTargetRoot => (targetRootsOrdered.Count > 0) ? useFirstSelectedAsMain ? targetRootsOrdered[0] : targetRootsOrdered[^1] : null;
+        public RuntimeEditable MainTargetRoot => (targetRootsOrdered.Count > 0) ? useFirstSelectedAsMain ? targetRootsOrdered[0] : targetRootsOrdered[^1] : null;
 
         AxisInfo axisInfo;
         internal Axis nearAxis = Axis.None;
@@ -94,12 +95,12 @@ namespace RuntimeGizmos
         internal readonly AxisVectors circlesLines = new();
 
         //We use a HashSet and a List for targetRoots so that we get fast lookup with the hashset while also keeping track of the order with the list.
-        readonly List<Transform> targetRootsOrdered = new();
-        readonly Dictionary<Transform, TargetInfo> targetRoots = new();
+        readonly List<RuntimeEditable> targetRootsOrdered = new();
+        readonly Dictionary<RuntimeEditable, TargetInfo> targetRoots = new();
         public readonly HashSet<Renderer> highlightedRenderers = new();
         readonly HashSet<Transform> children = new();
 
-        readonly List<Transform> childrenBuffer = new();
+        readonly List<Transform> childrenTransformBuffer = new();
         readonly List<Renderer> renderersBuffer = new();
         readonly List<Material> materialsBuffer = new();
 
@@ -127,6 +128,7 @@ namespace RuntimeGizmos
             RegisterNullSafe(ToggleTransformSpace, ToggleSpaceCmd);
             RegisterNullSafe(Undo, UndoCmd);
             RegisterNullSafe(Redo, RedoCmd);
+            RegisterNullSafe(Delete, DeleteCmd);
         }
 
         void OnDisable()
@@ -149,6 +151,7 @@ namespace RuntimeGizmos
             UnregisterNullSafe(ToggleTransformSpace, ToggleSpaceCmd);
             UnregisterNullSafe(Undo, UndoCmd);
             UnregisterNullSafe(Redo, RedoCmd);
+            UnregisterNullSafe(Delete, DeleteCmd);
         }
 
         void OnDestroy()
@@ -226,7 +229,7 @@ namespace RuntimeGizmos
             _ = TransformSelected(translatingType);
         }
 
-        async Awaitable TransformSelected(TransformType transType)
+        private async Awaitable TransformSelected(TransformType transType)
         {
             IsTransforming = true;
             TotalScaleAmount = 0;
@@ -246,7 +249,7 @@ namespace RuntimeGizmos
             List<ICommand> transformCommands = new();
             for (int i = 0; i < targetRootsOrdered.Count; i++)
             {
-                transformCommands.Add(new TransformCommand(this, targetRootsOrdered[i]));
+                transformCommands.Add(new TransformCommand(this, targetRootsOrdered[i].transform));
             }
 
             while (LeftMouseButton.action.IsPressed())
@@ -310,9 +313,7 @@ namespace RuntimeGizmos
 
                         for (int i = 0; i < targetRootsOrdered.Count; i++)
                         {
-                            Transform target = targetRootsOrdered[i];
-
-                            target.Translate(movement, Space.World);
+                            targetRootsOrdered[i].transform.Translate(movement, Space.World);
                         }
 
                         SetPivotPointOffset(movement);
@@ -336,16 +337,16 @@ namespace RuntimeGizmos
                             }
                         }
 
-                        Vector3 localAxis = (GetProperTransformSpace() == TransformSpace.Local && nearAxis != Axis.Any) ? MainTargetRoot.InverseTransformDirection(axis) : axis;
+                        Vector3 localAxis = (GetProperTransformSpace() == TransformSpace.Local && nearAxis != Axis.Any) ? MainTargetRoot.transform.InverseTransformDirection(axis) : axis;
                         Vector3 targetScaleAmount;
-                        if (nearAxis == Axis.Any) targetScaleAmount = ExtVector3.Abs(MainTargetRoot.localScale.normalized) * scaleAmount;
+                        if (nearAxis == Axis.Any) targetScaleAmount = ExtVector3.Abs(MainTargetRoot.transform.localScale.normalized) * scaleAmount;
                         else targetScaleAmount = localAxis * scaleAmount;
 
                         for (int i = 0; i < targetRootsOrdered.Count; i++)
                         {
-                            Transform target = targetRootsOrdered[i];
+                            var target = targetRootsOrdered[i].transform;
 
-                            Vector3 targetScale = target.localScale + targetScaleAmount;
+                            var targetScale = target.localScale + targetScaleAmount;
 
                             if (pivot == TransformPivot.Pivot)
                             {
@@ -407,13 +408,13 @@ namespace RuntimeGizmos
 
                         for (int i = 0; i < targetRootsOrdered.Count; i++)
                         {
-                            Transform target = targetRootsOrdered[i];
+                            var target = targetRootsOrdered[i].transform;
 
-                            if (pivot == TransformPivot.Pivot)
+                            if (pivot is TransformPivot.Pivot)
                             {
                                 target.Rotate(rotationAxis, rotateAmount, Space.World);
                             }
-                            else if (pivot == TransformPivot.Center)
+                            else if (pivot is TransformPivot.Center)
                             {
                                 target.RotateAround(originalPivot, rotationAxis, rotateAmount);
                             }
@@ -428,9 +429,9 @@ namespace RuntimeGizmos
                 await Awaitable.EndOfFrameAsync();
             }
 
-            for (int i = 0; i < transformCommands.Count; i++)
+            foreach (var cmd in transformCommands.Cast<TransformCommand>())
             {
-                ((TransformCommand)transformCommands[i]).StoreNewTransformValues();
+                cmd.StoreNewTransformValues();
             }
             CommandGroup commandGroup = new();
             commandGroup.Set(transformCommands);
@@ -444,7 +445,7 @@ namespace RuntimeGizmos
             SetPivotPoint();
         }
 
-        float CalculateSnapAmount(float snapValue, float currentAmount, out float remainder)
+        private float CalculateSnapAmount(float snapValue, float currentAmount, out float remainder)
         {
             remainder = 0;
             if (snapValue <= 0) return currentAmount;
@@ -459,7 +460,7 @@ namespace RuntimeGizmos
             return 0;
         }
 
-        Vector3 GetNearAxisDirection(out Vector3 otherAxis1, out Vector3 otherAxis2)
+        private Vector3 GetNearAxisDirection(out Vector3 otherAxis1, out Vector3 otherAxis2)
         {
             otherAxis1 = otherAxis2 = Vector3.zero;
 
@@ -504,15 +505,15 @@ namespace RuntimeGizmos
                 {
                     if (isAdding)
                     {
-                        AddTarget(obj.transform);
+                        AddTarget(obj);
                     }
                     else if (isRemoving)
                     {
-                        RemoveTarget(obj.transform);
+                        RemoveTarget(obj);
                     }
                     else if (!isAdding && !isRemoving)
                     {
-                        ClearAndAddTarget(obj.transform);
+                        ClearAndAddTarget(obj);
                     }
 
                     return;
@@ -525,35 +526,38 @@ namespace RuntimeGizmos
             }
         }
 
-        public void AddTarget(Transform target, bool addCommand = true)
+        public void AddTarget(RuntimeEditable target, bool addCommand = true)
         {
-            if (target != null)
+            if (target == null)
             {
-                if (targetRoots.ContainsKey(target)) return;
-                if (children.Contains(target)) return;
-
-                if (addCommand) UndoRedo.Global.Insert(new AddTargetCommand(this, target, targetRootsOrdered));
-
-                AddTargetRoot(target);
-                AddTargetHighlightedRenderers(target);
-
-                SetPivotPoint();
+                throw new ArgumentNullException(nameof(target));
             }
+
+            if (targetRoots.ContainsKey(target)) return;
+            if (children.Contains(target.transform)) return;
+
+            if (addCommand) UndoRedo.Global.Insert(new AddTargetCommand(this, target, targetRootsOrdered));
+
+            AddTargetRoot(target);
+            AddTargetHighlightedRenderers(target);
+
+            SetPivotPoint();
         }
 
-        public void RemoveTarget(Transform target, bool addCommand = true)
+        public void RemoveTarget(RuntimeEditable target, bool addCommand = true)
         {
-            if (target != null)
+            if (target == null)
             {
-                if (!targetRoots.ContainsKey(target)) return;
-
-                if (addCommand) UndoRedo.Global.Insert(new RemoveTargetCommand(this, target));
-
-                RemoveTargetHighlightedRenderers(target);
-                RemoveTargetRoot(target);
-
-                SetPivotPoint();
+                throw new ArgumentNullException(nameof(target));
             }
+            if (!targetRoots.ContainsKey(target)) return;
+
+            if (addCommand) UndoRedo.Global.Insert(new RemoveTargetCommand(this, target));
+
+            RemoveTargetHighlightedRenderers(target);
+            RemoveTargetRoot(target);
+
+            SetPivotPoint();
         }
 
         public void ClearTargets(bool addCommand = true)
@@ -566,7 +570,7 @@ namespace RuntimeGizmos
             children.Clear();
         }
 
-        void ClearAndAddTarget(Transform target)
+        private void ClearAndAddTarget(RuntimeEditable target)
         {
             UndoRedo.Global.Insert(new ClearAndAddTargetCommand(this, target, targetRootsOrdered));
 
@@ -574,36 +578,35 @@ namespace RuntimeGizmos
             AddTarget(target, false);
         }
 
-        void AddTargetHighlightedRenderers(Transform target)
+        private void AddTargetHighlightedRenderers(RuntimeEditable target)
         {
-            if (target != null)
+            if (target == null)
             {
-                GetTargetRenderers(target, renderersBuffer);
+                throw new ArgumentNullException(nameof(target));
+            }
+            GetTargetRenderers(target, renderersBuffer);
 
-                for (int i = 0; i < renderersBuffer.Count; i++)
+            for (int i = 0; i < renderersBuffer.Count; i++)
+            {
+                Renderer render = renderersBuffer[i];
+
+                if (!highlightedRenderers.Contains(render))
                 {
-                    Renderer render = renderersBuffer[i];
-
-                    if (!highlightedRenderers.Contains(render))
-                    {
-                        highlightedRenderers.Add(render);
-                    }
+                    highlightedRenderers.Add(render);
                 }
-
-                materialsBuffer.Clear();
             }
+
+            materialsBuffer.Clear();
         }
 
-        void GetTargetRenderers(Transform target, List<Renderer> renderers)
+        private void GetTargetRenderers(RuntimeEditable target, List<Renderer> renderers)
         {
+            if (target == null) return;
             renderers.Clear();
-            if (target != null)
-            {
-                target.GetComponentsInChildren<Renderer>(true, renderers);
-            }
+            target.GetComponentsInChildren(true, renderers);
         }
 
-        void ClearAllHighlightedRenderers()
+        private void ClearAllHighlightedRenderers()
         {
             foreach (var target in targetRoots)
             {
@@ -616,31 +619,31 @@ namespace RuntimeGizmos
             RemoveHighlightedRenderers(renderersBuffer);
         }
 
-        void RemoveTargetHighlightedRenderers(Transform target)
+        private void RemoveTargetHighlightedRenderers(RuntimeEditable target)
         {
             GetTargetRenderers(target, renderersBuffer);
 
             RemoveHighlightedRenderers(renderersBuffer);
         }
 
-        void RemoveHighlightedRenderers(List<Renderer> renderers)
+        private void RemoveHighlightedRenderers(List<Renderer> renderers)
         {
-            for (int i = 0; i < renderersBuffer.Count; i++)
+            for (int i = 0; i < renderers.Count; i++)
             {
-                highlightedRenderers.Remove(renderersBuffer[i]);
+                highlightedRenderers.Remove(renderers[i]);
             }
 
-            renderersBuffer.Clear();
+            renderers.Clear();
         }
 
-        void AddTargetRoot(Transform targetRoot)
+        private void AddTargetRoot(RuntimeEditable targetRoot)
         {
             targetRoots.Add(targetRoot, new TargetInfo());
             targetRootsOrdered.Add(targetRoot);
 
             AddAllChildren(targetRoot);
         }
-        void RemoveTargetRoot(Transform targetRoot)
+        private void RemoveTargetRoot(RuntimeEditable targetRoot)
         {
             if (targetRoots.Remove(targetRoot))
             {
@@ -650,33 +653,36 @@ namespace RuntimeGizmos
             }
         }
 
-        void AddAllChildren(Transform target)
+        private void AddAllChildren(RuntimeEditable target)
         {
-            childrenBuffer.Clear();
-            target.GetComponentsInChildren<Transform>(true, childrenBuffer);
-            childrenBuffer.Remove(target);
+            childrenTransformBuffer.Clear();
+            target.GetComponentsInChildren(true, childrenTransformBuffer);
+            childrenTransformBuffer.Remove(target.transform);
 
-            for (int i = 0; i < childrenBuffer.Count; i++)
+            for (int i = 0; i < childrenTransformBuffer.Count; i++)
             {
-                Transform child = childrenBuffer[i];
+                Transform child = childrenTransformBuffer[i];
                 children.Add(child);
-                RemoveTargetRoot(child); //We do this in case we selected child first and then the parent.
+                if (child.TryGetComponent<RuntimeEditable>(out var c))
+                {
+                    RemoveTargetRoot(c);
+                }
             }
 
-            childrenBuffer.Clear();
+            childrenTransformBuffer.Clear();
         }
-        void RemoveAllChildren(Transform target)
+        void RemoveAllChildren(RuntimeEditable target)
         {
-            childrenBuffer.Clear();
-            target.GetComponentsInChildren<Transform>(true, childrenBuffer);
-            childrenBuffer.Remove(target);
+            childrenTransformBuffer.Clear();
+            target.GetComponentsInChildren(true, childrenTransformBuffer);
+            childrenTransformBuffer.Remove(target.transform);
 
-            for (int i = 0; i < childrenBuffer.Count; i++)
+            for (int i = 0; i < childrenTransformBuffer.Count; i++)
             {
-                children.Remove(childrenBuffer[i]);
+                children.Remove(childrenTransformBuffer[i]);
             }
 
-            childrenBuffer.Clear();
+            childrenTransformBuffer.Clear();
         }
 
         public void SetPivotPoint()
@@ -688,18 +694,18 @@ namespace RuntimeGizmos
 
             if (pivot is TransformPivot.Pivot)
             {
-                PivotPoint = MainTargetRoot.position;
+                PivotPoint = MainTargetRoot.transform.position;
             }
             else if (pivot is TransformPivot.Center)
             {
                 totalCenterPivotPoint = Vector3.zero;
 
-                Dictionary<Transform, TargetInfo>.Enumerator targetsEnumerator = targetRoots.GetEnumerator();
+                var targetsEnumerator = targetRoots.GetEnumerator();
                 while (targetsEnumerator.MoveNext())
                 {
-                    Transform target = targetsEnumerator.Current.Key;
+                    var target = targetsEnumerator.Current.Key;
                     TargetInfo info = targetsEnumerator.Current.Value;
-                    info.centerPivotPoint = target.GetCenter(centerType);
+                    info.centerPivotPoint = target.transform.GetCenter(centerType);
 
                     totalCenterPivotPoint += info.centerPivotPoint;
                 }
@@ -876,7 +882,7 @@ namespace RuntimeGizmos
 
         void SetAxisInfo()
         {
-            axisInfo.Set(MainTargetRoot, PivotPoint, GetProperTransformSpace());
+            axisInfo.Set(MainTargetRoot.transform, PivotPoint, GetProperTransformSpace());
         }
 
         // This helps keep the size consistent no matter how far we are from it.
@@ -1188,6 +1194,15 @@ namespace RuntimeGizmos
                 TransformSpace.Global => TransformSpace.Local,
                 _ => throw new InvalidOperationException(),
             };
+        }
+
+        private void DeleteCmd(InputAction.CallbackContext context)
+        {
+            var cmd = new DeleteCommand(this, targetRootsOrdered);
+            if (cmd.ObjectCount > 0)
+            {
+                UndoRedo.Global.Execute(cmd);
+            }
         }
 
         private void UndoCmd(InputAction.CallbackContext context)

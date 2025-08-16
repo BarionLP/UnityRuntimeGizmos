@@ -5,10 +5,10 @@ namespace RuntimeGizmos.Commands
 {
 	public abstract class SelectCommand : ICommand
 	{
-		protected Transform target;
+		protected RuntimeEditable target;
 		protected TransformGizmo transformGizmo;
 
-		public SelectCommand(TransformGizmo transformGizmo, Transform target)
+		public SelectCommand(TransformGizmo transformGizmo, RuntimeEditable target)
 		{
 			this.transformGizmo = transformGizmo;
 			this.target = target;

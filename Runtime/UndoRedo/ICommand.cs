@@ -2,7 +2,8 @@ namespace CommandUndoRedo
 {
 	public interface ICommand
 	{
-		void Execute();
-		void UnExecute();
+		public void Execute();
+		public void UnExecute();
+		public void CleanUp() { }
 	}
 }

@@ -1,7 +1,7 @@
 {
     "name": "com.ametrin.transformgizmos",
     "displayName": "Runtime Transform Gizmos",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "unity": "6000.0",
     "description": "runtime transform gizmos",
     "license": "MIT",
