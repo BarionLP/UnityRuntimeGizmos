@@ -1,5 +1,5 @@
+using System;
 using CommandUndoRedo;
-using UnityEngine;
 
 namespace RuntimeGizmos.Commands
 {
@@ -10,6 +10,7 @@ namespace RuntimeGizmos.Commands
 
 		public SelectCommand(TransformGizmo transformGizmo, RuntimeEditable target)
 		{
+			if (target == null) throw new ArgumentNullException(nameof(target));
 			this.transformGizmo = transformGizmo;
 			this.target = target;
 		}

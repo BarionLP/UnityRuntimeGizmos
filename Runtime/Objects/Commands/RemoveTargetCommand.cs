@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace RuntimeGizmos.Commands
 {
     public sealed class RemoveTargetCommand : SelectCommand
@@ -8,12 +6,12 @@ namespace RuntimeGizmos.Commands
 
 		public override void Execute()
 		{
-			transformGizmo.RemoveTarget(target, addCommand: false);
+			transformGizmo.ExecuteRemoveTarget(target);
 		}
 
 		public override void UnExecute()
 		{
-			transformGizmo.AddTarget(target, addCommand: false);
+			transformGizmo.ExecuteAddTarget(target);
 		}
 	}
 }

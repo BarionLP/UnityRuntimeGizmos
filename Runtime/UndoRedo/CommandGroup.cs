@@ -1,35 +1,21 @@
+using System;
 using System.Collections.Generic;
 
 namespace CommandUndoRedo
 {
 	internal sealed class CommandGroup : ICommand
 	{
-		private List<ICommand> commands = new();
+		private readonly List<ICommand> commands = new();
 
-		public CommandGroup() {}
-		public CommandGroup(List<ICommand> commands)
+		public CommandGroup(IEnumerable<ICommand> commands)
 		{
-			this.commands.AddRange(commands);
-		}
-
-		public void Set(List<ICommand> commands)
-		{
-			this.commands = commands;
-		}
-
-		public void Add(ICommand command)
-		{
-			commands.Add(command);
-		}
-
-		public void Remove(ICommand command)
-		{
-			commands.Remove(command);
-		}
-
-		public void Clear()
-		{
-			commands.Clear();
+			var i = 0;
+			foreach(var command in commands)
+			{
+				if (command is null) throw new ArgumentNullException(nameof(commands), $"commands[{i}] was null");
+				this.commands.Add(command);
+				i++;
+			}
 		}
 
 		public void Execute()

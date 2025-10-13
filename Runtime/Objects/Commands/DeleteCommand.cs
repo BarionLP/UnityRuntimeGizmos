@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using CommandUndoRedo;
-using UnityEngine;
 
 namespace RuntimeGizmos.Commands
 {
@@ -25,7 +23,7 @@ namespace RuntimeGizmos.Commands
             {
                 obj.MarkDeleted();
                 obj.gameObject.SetActive(false);
-                transformGizmo.RemoveTarget(obj, addCommand: false);
+                transformGizmo.ExecuteRemoveTarget(obj);
             }
             isExecuted = true;
         }
@@ -36,7 +34,7 @@ namespace RuntimeGizmos.Commands
             {
                 obj.Restore();
                 obj.gameObject.SetActive(true);
-                transformGizmo.AddTarget(obj, addCommand: false);
+                transformGizmo.ExecuteAddTarget(obj);
             }
             isExecuted = false;
         }

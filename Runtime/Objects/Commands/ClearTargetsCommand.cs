@@ -1,27 +1,29 @@
-using UnityEngine;
 using System.Collections.Generic;
+using CommandUndoRedo;
 
 namespace RuntimeGizmos.Commands
 {
-    public sealed class ClearTargetsCommand : SelectCommand
+    public sealed class ClearTargetsCommand : ICommand
 	{
 		private readonly List<RuntimeEditable> targetRoots = new();
+        private readonly TransformGizmo transformGizmo;
 
-		public ClearTargetsCommand(TransformGizmo transformGizmo, List<RuntimeEditable> targetRoots) : base(transformGizmo, null)
+        public ClearTargetsCommand(TransformGizmo transformGizmo, IEnumerable<RuntimeEditable> targetRoots)
 		{
 			this.targetRoots.AddRange(targetRoots);
-		}
+            this.transformGizmo = transformGizmo;
+        }
 
-		public override void Execute()
+		public void Execute()
 		{
-			transformGizmo.ClearTargets(false);
+			transformGizmo.ExecuteClearTargets();
 		}
 
-		public override void UnExecute()
+		public void UnExecute()
 		{
 			for (int i = 0; i < targetRoots.Count; i++)
 			{
-				transformGizmo.AddTarget(targetRoots[i], false);
+				transformGizmo.ExecuteAddTarget(targetRoots[i]);
 			}
 		}
 	}

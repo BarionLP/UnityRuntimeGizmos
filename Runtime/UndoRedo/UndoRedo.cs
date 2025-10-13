@@ -28,6 +28,12 @@ namespace CommandUndoRedo
             command.Execute();
             Insert(command);
         }
+        
+        public void ExecuteOrIgnore(ICommand command)
+        {
+            if (command is null) return;
+            Execute(command);
+        }
 
         public void Insert(ICommand command)
         {

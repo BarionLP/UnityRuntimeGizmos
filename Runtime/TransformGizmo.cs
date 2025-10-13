@@ -63,8 +63,8 @@ namespace RuntimeGizmos
 
         [SerializeField] private bool useFirstSelectedAsMain = true;
 
-        //If circularRotationMethod is true, when rotating you will need to move your mouse around the object as if turning a wheel.
-        //If circularRotationMethod is false, when rotating you can just click and drag in a line to rotate.
+        // If circularRotationMethod is true, when rotating you will need to move your mouse around the object as if turning a wheel.
+        // If circularRotationMethod is false, when rotating you can just click and drag in a line to rotate.
         [SerializeField] private bool circularRotationMethod;
         [SerializeField] private int maxUndoStored = 100;
         [SerializeField] private LayerMask selectionMask = Physics.DefaultRaycastLayers;
@@ -137,7 +137,7 @@ namespace RuntimeGizmos
             {
                 Instance = null;
             }
-            ClearTargets();
+            UndoRedo.Global.Execute(GetClearTargets());
 
             UnregisterNullSafe(LeftMouseButton, MouseClicked);
 
@@ -433,9 +433,7 @@ namespace RuntimeGizmos
             {
                 cmd.StoreNewTransformValues();
             }
-            CommandGroup commandGroup = new();
-            commandGroup.Set(transformCommands);
-            UndoRedo.Global.Insert(commandGroup);
+            UndoRedo.Global.Insert(new CommandGroup(transformCommands));
 
             TotalRotationAmount = Quaternion.identity;
             TotalScaleAmount = 0;
@@ -505,15 +503,15 @@ namespace RuntimeGizmos
                 {
                     if (isAdding)
                     {
-                        AddTarget(obj);
+                        UndoRedo.Global.ExecuteOrIgnore(GetAddTargetIfNotSelected(obj));
                     }
                     else if (isRemoving)
                     {
-                        RemoveTarget(obj);
+                        UndoRedo.Global.ExecuteOrIgnore(GetRemoveTargetIfSelected(obj));
                     }
                     else if (!isAdding && !isRemoving)
                     {
-                        ClearAndAddTarget(obj);
+                        UndoRedo.Global.Execute(GetClearAndAddTarget(obj));
                     }
 
                     return;
@@ -522,21 +520,27 @@ namespace RuntimeGizmos
 
             if (!isAdding && !isRemoving)
             {
-                ClearTargets();
+                UndoRedo.Global.Execute(GetClearTargets());
             }
         }
 
-        public void AddTarget(RuntimeEditable target, bool addCommand = true)
+        public AddTargetCommand GetAddTargetIfNotSelected(RuntimeEditable target)
+        {
+            if (targetRoots.ContainsKey(target) || children.Contains(target.transform)) return null;
+
+            return GetAddTarget(target);
+        }
+
+        public AddTargetCommand GetAddTarget(RuntimeEditable target) => new(this, target, targetRootsOrdered);
+
+        public void ExecuteAddTarget(RuntimeEditable target)
         {
             if (target == null)
             {
                 throw new ArgumentNullException(nameof(target));
             }
 
-            if (targetRoots.ContainsKey(target)) return;
-            if (children.Contains(target.transform)) return;
-
-            if (addCommand) UndoRedo.Global.Insert(new AddTargetCommand(this, target, targetRootsOrdered));
+            if (targetRoots.ContainsKey(target) || children.Contains(target.transform)) return;
 
             AddTargetRoot(target);
             AddTargetHighlightedRenderers(target);
@@ -544,7 +548,13 @@ namespace RuntimeGizmos
             SetPivotPoint();
         }
 
-        public void RemoveTarget(RuntimeEditable target, bool addCommand = true)
+        public RemoveTargetCommand GetRemoveTargetIfSelected(RuntimeEditable target)
+        {
+            if (!targetRoots.ContainsKey(target)) return null;
+
+            return new RemoveTargetCommand(this, target);
+        }
+        public void ExecuteRemoveTarget(RuntimeEditable target)
         {
             if (target == null)
             {
@@ -552,30 +562,29 @@ namespace RuntimeGizmos
             }
             if (!targetRoots.ContainsKey(target)) return;
 
-            if (addCommand) UndoRedo.Global.Insert(new RemoveTargetCommand(this, target));
-
             RemoveTargetHighlightedRenderers(target);
             RemoveTargetRoot(target);
 
             SetPivotPoint();
         }
 
-        public void ClearTargets(bool addCommand = true)
+        public ClearTargetsCommand GetClearTargets() => new(this, targetRootsOrdered);
+        public void ExecuteClearTargets()
         {
-            if (addCommand) UndoRedo.Global.Insert(new ClearTargetsCommand(this, targetRootsOrdered));
-
             ClearAllHighlightedRenderers();
             targetRoots.Clear();
             targetRootsOrdered.Clear();
             children.Clear();
         }
 
-        private void ClearAndAddTarget(RuntimeEditable target)
+        private readonly ICommand[] clearAndAddTargetBuffer = new ICommand[2];
+        private ICommand GetClearAndAddTarget(RuntimeEditable target)
         {
-            UndoRedo.Global.Insert(new ClearAndAddTargetCommand(this, target, targetRootsOrdered));
-
-            ClearTargets(false);
-            AddTarget(target, false);
+            clearAndAddTargetBuffer[0] = GetClearTargets();
+            clearAndAddTargetBuffer[1] = GetAddTarget(target);
+            var command = new CommandGroup(clearAndAddTargetBuffer);
+            Array.Fill(clearAndAddTargetBuffer, null);
+            return command;
         }
 
         private void AddTargetHighlightedRenderers(RuntimeEditable target)
@@ -588,7 +597,7 @@ namespace RuntimeGizmos
 
             for (int i = 0; i < renderersBuffer.Count; i++)
             {
-                Renderer render = renderersBuffer[i];
+                var render = renderersBuffer[i];
 
                 if (!highlightedRenderers.Contains(render))
                 {

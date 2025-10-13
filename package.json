@@ -1,21 +1,21 @@
 {
     "name": "com.ametrin.transformgizmos",
     "displayName": "Runtime Transform Gizmos",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "unity": "6000.0",
-    "description": "runtime transform gizmos",
+    "description": "runtime transform gizmos for Unity 6",
     "license": "MIT",
     "author": {
         "name": "Barion",
-        "email": "ametrin.studios@gmail.com",
+        "email": "barion+unity@ik.me",
         "url": "https://github.com/BarionLP"
     },
     "bugs": {
-        "url": "https://github.com/BarionLP/CommandSystem/issues"
+        "url": "https://github.com/BarionLP/UnityRuntimeGizmos/issues"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/BarionLP/CommandSystem.git"
+        "url": "https://github.com/BarionLP/UnityRuntimeGizmos.git"
     },
     "samples": []
 }

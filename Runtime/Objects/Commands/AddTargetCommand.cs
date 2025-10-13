@@ -1,4 +1,3 @@
-using UnityEngine;
 using System.Collections.Generic;
 
 namespace RuntimeGizmos.Commands
@@ -16,16 +15,16 @@ namespace RuntimeGizmos.Commands
 
 		public override void Execute()
 		{
-			transformGizmo.AddTarget(target, false);
+			transformGizmo.ExecuteAddTarget(target);
 		}
 
 		public override void UnExecute()
 		{
-			transformGizmo.RemoveTarget(target, false);
+			transformGizmo.ExecuteRemoveTarget(target);
 
 			for (int i = 0; i < targetRoots.Count; i++)
 			{
-				transformGizmo.AddTarget(targetRoots[i], false);
+				transformGizmo.ExecuteAddTarget(targetRoots[i]);
 			}
 		}
 	}
